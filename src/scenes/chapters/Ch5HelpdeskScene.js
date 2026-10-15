@@ -11,7 +11,10 @@
  * wieder Einschalten versucht?“ → Power-Taste am Handy lange drücken → „Neu starten“.
  *
  * Rechts das Handy (UI.Phone, mit eingebauter Power-Taste) und ein Post-it, das immer
- * sagt, was als Nächstes zu tun ist – nach wiederholten Fehlern mit Mitleids-Tipp.
+ * sagt, was als Nächstes zu tun ist – nach wiederholten Fehlern mit Mitleids-Tipp (gilt nur
+ * für die aktuelle Runde). Kleinärger, für den niemand etwas kann (Ticket zusammengeführt,
+ * Warteschleife, vorgezogener Notfall), kostet etwas Frust ohne Fehlversuch (annoy()).
+ * Kapitel-Erfolge gibt es nur fürs echte Spielen, nicht für debugSolve().
  * Inhalte, Texte und Regeln kommen aus Ch5Logic; hier nur Darstellung und Ablauf.
  *
  * Global: Ch5HelpdeskScene.
@@ -66,6 +69,7 @@ class Ch5HelpdeskScene extends ChapterScene {
     POSTIT: Object.freeze({
       X: 548, Y: 476, WIDTH: 236, HEIGHT: 116, ANGLE: 1.5, PAD: 12, TITLE_Y: 8, TITLE_SIZE: 15, TEXT_Y: 30,
       TEXT_SIZE: 14, MIN_TEXT_SIZE: 12, BOTTOM_PAD: 8, SHADOW: 4, TAPE_WIDTH: 48, TAPE_HEIGHT: 12,
+      LONG_WORD_CHARS: 20, // ab dieser Länge wird ein Wort einzeln vermessen (darf nicht umbrechen)
     }),
     POPUP: Object.freeze({
       WIDTH: 290, TITLE_HEIGHT: 28, TITLE_SIZE: 13, PAD: 10, CLOSE_HIT: 30, BUTTON_HEIGHT: 30, BUTTON_FONT: 13, BUTTON_GAP: 8,
@@ -79,7 +83,7 @@ class Ch5HelpdeskScene extends ChapterScene {
       STAMP_Y_RATIO: 0.42,    // Stempel: Anteil der Inhaltshöhe
       PHONE_OFFSET_X: -100,   // Zeitstrafe „Neustart ohne Wirkung“ links neben dem Handy
       PHONE_OFFSET_Y: 60,
-      STATUS_OFFSET_Y: 40,    // „Zusammengeführt“: so weit unter dem Ticket-Status (mittig im Browser)
+      STATUS_OFFSET_Y: 70,    // „Zusammengeführt“: so weit unter dem Ticket-Status (steigt bis knapp unter die Kopfzeile)
       ANNOY_SIZE: 15,         // Schriftgröße der Floating-Texte für Kleinärger
     }),
   });
@@ -107,6 +111,15 @@ class Ch5HelpdeskScene extends ChapterScene {
     HIGHLIGHT_MS: 260,       // Blinken der Power-Markierung (danach bleibt sie im Finale stehen)
     HIGHLIGHT_BLINKS: 2,
     SOLVED_STAMP_HOLD_MS: 1300, // „GELÖST“ bleibt bis zum Kapitelwechsel liegen
+  });
+
+  /** Puls-Effekte (FX.pulse) – kurz und dezent, nur als Antwort auf ein Ereignis. */
+  static PULSE = Object.freeze({
+    OPTION: Object.freeze({ scale: 1.03, duration: 120, repeat: 1 }),      // Mitleids-Tipp: richtige Antwort
+    QUEUE: Object.freeze({ scale: 1.12, duration: 110, repeat: 0 }),       // Warteschlange rückt
+    POSTIT: Object.freeze({ scale: 1.03, duration: 110, repeat: 0 }),      // neuer Tipp
+    POSTIT_MERCY: Object.freeze({ scale: 1.06, duration: 110, repeat: 0 }), // Mitleids-Tipp
+    POWER_TAG: Object.freeze({ scale: 1.2, duration: 120, repeat: 1 }),    // „Power“-Etikett im Finale
   });
 
   /** Zeichenebenen (relativ zu CONFIG.DEPTH). */
@@ -184,6 +197,7 @@ class Ch5HelpdeskScene extends ChapterScene {
     this.hoursCheckMs = 0;
     this.lastHoursOpen = null;
     this.elapsedMs = 0;
+    this.tipProbe = null; // Mess-Text für setTip (entsteht bei Bedarf)
   }
 
   /** Browserfenster mit dem Ticketsystem. */
@@ -544,7 +558,9 @@ class Ch5HelpdeskScene extends ChapterScene {
         widget.setError(result.reason, { shake: true });
       }
       this.formMessage.setText(result.message);
-      this.fail(result.reason, { frustration: result.frustration, minutes: result.minutes, stamp: null, shake: false, x: pos.x, y: pos.y });
+      // Floating-Text am betroffenen Feld (nicht über der roten Formularmeldung)
+      const at = this.formCenters[result.field] || pos;
+      this.fail(result.reason, { frustration: result.frustration, minutes: result.minutes, stamp: null, shake: false, x: at.x, y: at.y });
       if (result.showMercy) this.setTip(result.mercy, { isMercy: true });
       return;
     }
@@ -671,7 +687,7 @@ class Ch5HelpdeskScene extends ChapterScene {
     const button = this.optionButtons.find((b) => b.isCorrectOption);
     if (!button) return;
     button.setVariant('success');
-    FX.pulse(this, button, { scale: 1.03, duration: 120, repeat: 1 });
+    FX.pulse(this, button, { ...Ch5HelpdeskScene.PULSE.OPTION });
   }
 
   /** Spieler:in wählt eine Antwort. */
@@ -922,7 +938,7 @@ class Ch5HelpdeskScene extends ChapterScene {
   setHoldPosition(position) {
     if (!this.holdPositionText || !this.holdPositionText.scene) return;
     this.holdPositionText.setText(Ch5Logic.format(this.texts.holdPosition, { position }));
-    FX.pulse(this, this.holdPositionText, { scale: 1.12, duration: 110, repeat: 0 });
+    FX.pulse(this, this.holdPositionText, { ...Ch5HelpdeskScene.PULSE.QUEUE });
   }
 
   /** 2nd Level übernimmt. */
@@ -1247,7 +1263,8 @@ class Ch5HelpdeskScene extends ChapterScene {
   }
 
   /**
-   * Text auf dem Post-it (Schrift schrumpft bei langen Tipps).
+   * Text auf dem Post-it. Die Schrift schrumpft, bis der Tipp in die Notiz passt und kein
+   * einzelnes Wort (z. B. Kennung@Realm) mitten im Wort umbrechen muss.
    * @param {string} text
    * @param {{isMercy?: boolean}} [opts] Mitleids-Tipp: rote Überschrift + kurzes Pulsieren
    */
@@ -1259,13 +1276,33 @@ class Ch5HelpdeskScene extends ChapterScene {
       .setColor(isMercy ? CONFIG.CSS.DHBW_RED : CONFIG.CSS.INK);
     this.tipText.setText(text);
     const available = N.HEIGHT - N.TEXT_Y - N.BOTTOM_PAD;
+    const wrapWidth = N.WIDTH - 2 * N.PAD;
+    const longWords = String(text).split(/\s+/).filter((word) => word.length >= N.LONG_WORD_CHARS);
+    const fits = (size) => this.tipText.height <= available
+      && longWords.every((word) => this.measureTipWord(word, size) <= wrapWidth);
     let size = N.TEXT_SIZE;
     this.tipText.setFontSize(size);
-    while (this.tipText.height > available && size > N.MIN_TEXT_SIZE) {
+    while (!fits(size) && size > N.MIN_TEXT_SIZE) {
       size -= 0.5;
       this.tipText.setFontSize(size);
     }
-    if (changed && (isMercy || this.elapsedMs > 0)) FX.pulse(this, this.postit, { scale: isMercy ? 1.06 : 1.03, duration: 110, repeat: 0 });
+    if (changed && (isMercy || this.elapsedMs > 0)) {
+      FX.pulse(this, this.postit, { ...(isMercy ? Ch5HelpdeskScene.PULSE.POSTIT_MERCY : Ch5HelpdeskScene.PULSE.POSTIT) });
+    }
+  }
+
+  /**
+   * Breite eines Wortes in der Post-it-Schrift (unsichtbarer Mess-Text, wird wiederverwendet).
+   * @param {string} word
+   * @param {number} size Schriftgröße in px
+   * @returns {number}
+   */
+  measureTipWord(word, size) {
+    if (!this.tipProbe || !this.tipProbe.scene) {
+      this.tipProbe = UI.text(this, 0, 0, '', { font: 'HAND', size, color: CONFIG.CSS.INK }).setVisible(false);
+    }
+    this.tipProbe.setFontSize(size).setText(word);
+    return this.tipProbe.width;
   }
 
   /** Ziel und Tipp passend zur aktuellen Phase (z. B. nach einem frühen Neustart). */
@@ -1311,7 +1348,7 @@ class Ch5HelpdeskScene extends ChapterScene {
       targets: this.powerHighlight, alpha: 1, duration: T.HIGHLIGHT_MS, yoyo: true, repeat: T.HIGHLIGHT_BLINKS,
       onComplete: () => this.powerHighlight.setAlpha(restAlpha()),
     });
-    FX.pulse(this, this.powerTag, { scale: 1.2, duration: 120, repeat: 1 });
+    FX.pulse(this, this.powerTag, { ...Ch5HelpdeskScene.PULSE.POWER_TAG });
   }
 
   /** Nach längerem Zögern im Finale: deutlicher Hinweis auf die Power-Taste. */
@@ -1566,6 +1603,7 @@ class Ch5HelpdeskScene extends ChapterScene {
     this.removeForm();
     this.buildChat();
     this.setTyping(null);
+    this.browser.setLoading(false); // falls gerade „Ticket wird gesendet“ lief
 
     this.hidePowerMenu();
     this.hideBootScreen();
@@ -1581,6 +1619,10 @@ class Ch5HelpdeskScene extends ChapterScene {
     UI.sound('connect');
 
     this.updateTicketStatus();
+    // Kopfzeile mit Ticketnummer (auch wenn debugSolve direkt aus dem Formular kommt)
+    this.ticketLabel.setText(Ch5Logic.format(texts.headerTicket, {
+      ticketId: this.session.getTicketId(), category: this.session.getCategoryLabel(),
+    }));
     this.addBubble({ kind: 'agent', name: this.agentName('second'), text: texts.solved });
     this.addBubble({ kind: 'system', text: Ch5Logic.format(texts.solvedSystem, { ticketId: this.session.getTicketId() }) });
     this.setObjective(texts.objectiveDone);

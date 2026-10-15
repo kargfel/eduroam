@@ -526,7 +526,6 @@ const Ch3Logic = (() => {
       RATE_NONE: '–',
       POSTIT_TITLE: 'Referat Gruppe 3',
       POSTIT_LINE: 'Du bist dran in',
-      POSTIT_PAUSED: 'Prof. wartet …',
       INVENTORY_TITLE: 'FUNDSACHEN',
       BREZELS: 'Brezeln',
       BREZEL_EXTRA: '+{n}',

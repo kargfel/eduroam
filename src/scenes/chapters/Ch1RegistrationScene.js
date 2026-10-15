@@ -7,12 +7,17 @@
  * Rechts das Self-Service-Portal im Browserfenster (UI.Window 'browser'), das über „EDGE“
  * lädt. Fünf Stationen:
  *   1. Login – Lupe kostet Zeit, nach 3 Fehlern rettet der Kopierer (keine Sackgasse)
- *   2. CAPTCHA „Wähle alle Bilder mit Access Points“ – der erste Versuch scheitert immer
+ *   2. CAPTCHA „Wähle alle Bilder mit Access Points“ – Bilderrätsel als Popup über der Seite
+ *      (wie das Original), der erste Versuch scheitert immer
  *   3. Nutzungsordnung – „Akzeptieren“ erst am Ende, Geheimwort in § 14 → TOS_READER
  *   4. Neues Passwort – Regeln erscheinen nacheinander („Password Game“), dann wiederholen
  *   5. Synchronisation „bis zu 24 h“ – warten (+24 h) oder neu laden (je +1 min, 3–6×)
  * Regeln, Texte und Zufall stehen in Ch1Logic; diese Szene zeichnet und verbucht
  * Fehlversuche/Strafen über die ChapterScene-Helfer.
+ *
+ * Gestaltung: Alle Texte mindestens 13 px. Rückmeldungen, die unten mittig als Toast das
+ * Post-it oder Bedienelemente verdecken würden, stehen in der Seite (Infokasten, Hinweiszeile);
+ * die übrigen Toasts sind schmal umbrochen (siehe Ch1Logic.TEXT).
  *
  * Global: Ch1RegistrationScene.
  * Abhängigkeiten (zur Laufzeit): Phaser, CONFIG, CAMPUS, GameState, UI (+ Widgets), FX,

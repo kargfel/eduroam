@@ -594,7 +594,8 @@ const Ch5Logic = (() => {
           wrong({ id: 'name', label: `${place.studentName}, ${place.course}`, reason: 'Name ist keine Kennung', frustration: F.SMALL,
             reply: `Wir haben 14 Personen namens ${place.studentName}. Drei davon im ${place.course}.` }),
         ],
-        mercy: `Identität = Kennung@Realm, also ${place.identity}. Die anonyme Identität ist nur die äußere Hülle.`,
+        // Kennung@Realm allein in eine Zeile: Das lange Wort soll auf dem Post-it nicht umbrechen
+        mercy: `Identität = Kennung@Realm, also:\n${place.identity}\nDie anonyme Identität ist nur die äußere Hülle.`,
         progressAfter: 0.25,
       },
       {

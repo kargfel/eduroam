@@ -171,6 +171,7 @@ class Ch4CertificateScene extends ChapterScene {
     this.frontSheet = 'reference';
     this.magnifierUses = 0;
     this.pendingPassword = null;
+    this.isDebugSolving = false;
 
     this.buildTracker();
     this.buildReferenceSheet();
@@ -511,14 +512,14 @@ class Ch4CertificateScene extends ChapterScene {
     });
   }
 
-  /** Kapitel abschließen (CERT_INSPECTOR bei fehlerfreiem Spiel). */
+  /** Kapitel abschließen (CERT_INSPECTOR bei fehlerfreiem Spiel – nicht per debugSolve). */
   finishChapter() {
     if (this.isFinished) return;
     this.activeModal = null;
     this.closeDialog();
     this.closePhoneCard();
     const stats = this.logic.getStats();
-    if (stats.perfect) this.achievement('CERT_INSPECTOR');
+    if (stats.perfect && !this.isDebugSolving) this.achievement('CERT_INSPECTOR');
     this.step = Ch4CertificateScene.STEP.DONE;
     this.phone.setWifiState('connected', 4);
     this.setObjective(Ch4Logic.TEXTS.objectives.done);
@@ -528,6 +529,7 @@ class Ch4CertificateScene extends ChapterScene {
       perfect: stats.perfect,
       newsRead: stats.newsRead,
       magnifierUses: this.magnifierUses,
+      solvedBy: this.isDebugSolving ? 'debug' : 'player',
     });
   }
 
@@ -987,8 +989,9 @@ class Ch4CertificateScene extends ChapterScene {
       const label = UI.text(this, DL.PAD, y, field.label, { size: DL.LABEL_SIZE, color: CSS.TEXT_MUTED });
       const color = field.ok === true ? CSS.SUCCESS : field.ok === false ? CSS.DANGER : CSS.TEXT;
       const value = UI.text(this, DL.PAD, y + label.height, field.value, {
-        size: DL.VALUE_SIZE, color, bold: field.ok === false, wrap: inner,
+        size: DL.VALUE_SIZE, color, bold: field.ok === false, wrap: field.isHost ? null : inner,
       });
+      if (field.isHost) Ch4CertificateScene.fitHostname(value, inner);
       y += label.height + value.height + DL.FIELD_GAP;
       parts.push(label, value);
     });
@@ -1076,6 +1079,7 @@ class Ch4CertificateScene extends ChapterScene {
         label: T.serverName,
         value: d.detailsOpen ? cert.serverName : Ch4Logic.truncateServerName(cert.serverName, maxChars),
         ok: pick('serverName'),
+        isHost: true,
       },
       { label: T.organization, value: cert.organization || '—', ok: null },
     ];
@@ -1241,6 +1245,33 @@ class Ch4CertificateScene extends ChapterScene {
     return { x: Math.round(p.x), y: Math.round(p.y) };
   }
 
+  /**
+   * Bricht einen zu langen Hostnamen an Punkten um statt mitten im Wort
+   * („radius.dhbw-stuttgart.de.“ / „login-portal.example“) – so fällt Kevins Anhängsel auf.
+   * @param {Phaser.GameObjects.Text} textObject Text ohne wordWrap (die Breite wird gemessen)
+   * @param {number} maxWidth
+   */
+  static fitHostname(textObject, maxWidth) {
+    if (!textObject || textObject.width <= maxWidth) return;
+    const labels = textObject.text.split('.');
+    const lines = [];
+    let current = '';
+    labels.forEach((label, i) => {
+      const piece = i < labels.length - 1 ? `${label}.` : label;
+      textObject.setText(current + piece);
+      if (current && textObject.width > maxWidth) {
+        lines.push(current);
+        current = piece;
+      } else {
+        current += piece;
+      }
+    });
+    lines.push(current);
+    textObject.setText(lines.join('\n'));
+    // Ein einzelnes Label ist immer noch zu breit (sehr unwahrscheinlich): dann normal umbrechen
+    if (textObject.width > maxWidth) textObject.setWordWrapWidth(maxWidth, true);
+  }
+
   /** −45 dBm (mit echtem Minuszeichen). */
   static formatDbm(dbm) {
     return `${String(dbm).replace('-', '−')} dBm`;
@@ -1262,14 +1293,18 @@ class Ch4CertificateScene extends ChapterScene {
   // Debug/Test
   // ===========================================================================
 
-  /** Löst das Kapitel wie ein perfekter Spieler (Rundmail lesen, richtig entscheiden). */
+  /**
+   * Löst das Kapitel wie ein perfekter Spieler (Rundmail lesen, richtig entscheiden) – aus jedem
+   * Zustand, ohne Strafen und ohne Erfolg (Debug ist keine Leistung).
+   */
   debugSolve() {
     if (this.isFinished) return;
+    this.isDebugSolving = true; // eigene Timer/Handler laufen danach ins Leere (isFinished)
     this.closeDialog();
     this.closePhoneCard();
     if (UI.Modal && typeof UI.Modal.closeAll === 'function') UI.Modal.closeAll(this);
     this.activeModal = null;
-    if (this.pendingPassword) this.completePasswordChange();
+    this.pendingPassword = null; // offene Passwort-Zeitstrafe verfällt (keine Strafen im Debug)
     if (!this.logic.hasReadNews()) this.bringSheetToFront('news');
     const { TRUST, REJECT } = Ch4Logic.DECISION;
     for (let step = 0; step < Ch4CertificateScene.DEBUG_SOLVE_MAX_STEPS && !this.logic.isFinished(); step += 1) {

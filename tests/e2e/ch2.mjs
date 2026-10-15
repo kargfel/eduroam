@@ -180,6 +180,18 @@ async function connect(g) {
   return info(g);
 }
 
+/**
+ * Szenen-Uhr des Kapitels anhalten bzw. weiterlaufen lassen (nur für Screenshots): Timer wie
+ * der Kapitelwechsel nach succeed() warten, Tweens laufen weiter. Unter Last dauert ein
+ * Screenshot sonst länger als die Erfolgsphase.
+ */
+function holdChapterClock(g, isHeld) {
+  return g.eval((held) => {
+    const scene = window.__EDU_DEBUG.getChapterScene();
+    if (scene) scene.time.paused = held;
+  }, isHeld);
+}
+
 /** HUD-Button (Spielkoordinaten) anklicken. */
 async function clickHud(g, id) {
   const center = await g.eval((buttonId) => window.__EDU_DEBUG.game.scene.getScene('HUD').getButtonCenter(buttonId), id);
@@ -289,8 +301,10 @@ await test('Kapitel 2 – Happy Path mit echten Eingaben (erster Versuch, anonym
 
     debugInfo = await connect(g);
     assert(debugInfo.step === 'connected', `verbunden erwartet, war ${debugInfo.step} (${JSON.stringify(debugInfo.lastResult)})`);
-    await g.wait(1200);
+    await holdChapterClock(g, true);
+    await g.wait(1200); // Korrekturen im Merkblatt (Tweens) laufen ein
     await g.shot('ch2-09-connected');
+    await holdChapterClock(g, false);
 
     await g.waitFor(() => Boolean(window.__EDU_DEBUG.getState().chapterStats[2]), null, { timeout: STATE_TIMEOUT });
     state = await g.state();
@@ -356,6 +370,8 @@ await test('Kapitel 2 – Fehlerpfad: stur, Merkblatt blind, Mitleids-Tipps, kei
     });
     await g.click(blocked.x, blocked.y);
     assert(await g.eval(() => window.__EDU_DEBUG.getChapterScene().fields.caCert.isOpen()), 'Liste bleibt offen');
+    await g.waitFor(() => UI.Toast.getActive(window.__EDU_DEBUG.getChapterScene())
+      .some((toast) => /Android 11/.test(toast.getText()) && toast.alpha > 0.9));
     await g.shot('ch2-12-no-validate');
     await g.press('Escape');
 
@@ -567,12 +583,16 @@ await test('Kapitel 2 – debugSolve mit offener Auswahlliste und fokussiertem F
     await g.type('wwi');
     await tap(g, 'caCert');
     await g.waitFor(() => window.__EDU_DEBUG.getChapterScene().fields.caCert.isOpen());
-    await g.eval(() => window.__EDU_DEBUG.solve());
+    await g.eval(() => {
+      window.__EDU_DEBUG.solve();
+      window.__EDU_DEBUG.getChapterScene().time.paused = true; // Kapitelwechsel erst nach dem Screenshot
+    });
     await until(g, (i) => i.isFinished);
     const isListGone = await g.eval(() => !UI.Dropdown.isAnyOpen(window.__EDU_DEBUG.getChapterScene()));
     assert(isListGone, 'Auswahlliste nach debugSolve geschlossen');
     await g.wait(300);
     await g.shot('ch2-19-debug-solved');
+    await holdChapterClock(g, false);
     await g.waitFor(() => window.__EDU_DEBUG.getState().currentChapterId === 3, null, { timeout: STATE_TIMEOUT });
     g.assertNoErrors();
   } finally {

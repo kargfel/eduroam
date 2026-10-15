@@ -74,7 +74,7 @@ class Ch2ConfigScene extends ChapterScene {
       BUTTON_GAP: 8, BUTTON_FONT: 14, KEYBOARD_H: 26, KEYBOARD_SIZE: 13, KEYBOARD_PULSE: 1.05, MAX_LENGTH: 96,
     }),
     FEEDBACK: Object.freeze({
-      STAMP_Y: 300, FLOAT_Y_OFFSET: -16, FLOAT_SIZE: 16, MODAL_PENALTY_Y: 140, // über dem Systemdialog
+      STAMP_Y: 300, FLOAT_Y_OFFSET: -16, MODAL_PENALTY_Y: 140, // MODAL_PENALTY_Y: über dem Systemdialog
       AUTOCORRECT_SIZE: 15, AUTOCORRECT_MS: 2600, AUTOCORRECT_RISE: 22,
     }),
     SUCCESS_DELAY_MS: 3200, // Zeit, um die Korrekturen im Merkblatt zu lesen (plus CHAPTER_END_DELAY)

@@ -6,11 +6,12 @@
  * Dialogrunden (Daten aus CAMPUS, genau eine richtige Antwort, kurze Beschriftungen),
  * Zustandsautomat (Formular → Chat → Warteschleife → Chat → Finale → gelöst),
  * Mitleids-Tipps, Sprechzeiten mit der Spieluhr, Pop-up-Zeitplan, Ticket-Status,
- * Passwort-Maskierung, phished-Flag und das Frust-Budget.
+ * Passwort-Maskierung, phished-Flag, kurze Toast-Texte und das Frust-Budget
+ * (perfekt ≈ 4 %, normal mit zwei typischen Fehlern ≈ 10 %, zufälliges Klicken ≈ 33 %).
  *
  * Zufall: Die Tests injizieren einen eigenen seedbaren Generator (gleiche API wie RNG),
- * damit sie auch laufen, solange src/core/rng.js noch ein Platzhalter ist. Ein Test
- * prüft zusätzlich den echten globalen RNG, sobald es ihn gibt.
+ * damit sie unabhängig vom globalen Zufallsstrom sind. Ein Test prüft zusätzlich den
+ * echten globalen RNG aus src/core/rng.js.
  * Aufruf: node --test "tests/unit/ch5.test.js"
  */
 const test = require('node:test');

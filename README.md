@@ -17,6 +17,14 @@ eduroam sein können. Du bist Erstsemester an der DHBW Stuttgart, es ist 07:30 U
 Über alle Kapitel laufen eine Uhr und ein Frust-Meter. Bei 100 % Frust ist Schluss.
 Highscore und Erfolge speichert der Browser.
 
+## Screenshots
+
+| Menü | Kapitel 2: Konfiguration |
+|---|---|
+| ![Menü mit Stempel](screenshots/moodle-1-menu.png) | ![Android-Dialog und IT-Merkblatt von 2014](screenshots/moodle-2-kapitel2.png) |
+| **Kapitel 3: Signaljagd** | **Kapitel 4: Zertifikat** |
+| ![Campus mit Funklöchern und S21-Baustelle](screenshots/moodle-3-kapitel3.png) | ![Evil Twin mit Tippfehler-Servername](screenshots/moodle-4-kapitel4.png) |
+
 ## Lokal starten
 
 - `index.html` doppelklicken – fertig. Ohne Internet lädt das Spiel Phaser aus `vendor/`.

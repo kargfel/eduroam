@@ -270,6 +270,7 @@ await runTest('Kapitel 3 – debugSolve() aus dem Startdialog', async () => {
     const state = await g.state();
     assert(state.chapterStats[3].solvedBy === 'debug', 'Statistik markiert debugSolve');
     assert(state.totalFails === 0, 'debugSolve ohne Fehlversuch');
+    assert(!state.runAchievements.includes('NO_DEADZONE'), 'debugSolve vergibt keinen Erfolg');
     g.assertNoErrors();
   } finally {
     await g.close();

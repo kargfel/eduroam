@@ -8,10 +8,14 @@
  *    CAPTCHA-Auswahl bis zu den Bildbeschreibungen, Überraschungsregel, falsche
  *    Wiederholung, 24 Stunden warten – Fehlversuche und Frust steigen, nie eine Sackgasse.
  * 3. debugSolve(): löst das Kapitel, setzt gültige Zugangsdaten.
- * 4. Pause/Weiter: pausiertes Kapitel nimmt keine Eingaben an, danach geht es weiter.
+ * 4. Pause/Weiter: pausiertes Kapitel nimmt keine Eingaben an (auch mitten im Laden),
+ *    die Uhr steht, danach geht es weiter.
+ * 5. „Kapitel neu starten“ (Pause-Menü): Zustand, Felder, Adresszeile zurückgesetzt, keine
+ *    Reste von Lupe/CAPTCHA-Popup, keydown-Listener nicht doppelt, danach normal spielbar.
  * Screenshots: screenshots/ch1-*.png. Klickziele liefert getDebugInfo().targets.
  *
  * Aufruf: node tests/e2e/ch1.mjs
+ * Balance-Messung (nur diese, ca. 3 min, menschliches Tempo): CH1_BALANCE=1 node tests/e2e/ch1.mjs
  */
 import { launchGame, runTest, assert } from './harness.mjs';
 
@@ -117,7 +121,11 @@ async function waitChapterComplete(g) {
 
 // =============================================================================
 
-await runTest('ch1: Happy Path mit echten Eingaben (drei Erfolge, Kapitel abgeschlossen)', async () => {
+/** Standardtests; bei CH1_BALANCE=1 läuft nur die Balance-Messung (siehe unten). */
+const IS_BALANCE_ONLY = Boolean(process.env.CH1_BALANCE);
+const standardTest = (name, fn) => (IS_BALANCE_ONLY ? Promise.resolve() : runTest(name, fn));
+
+await standardTest('ch1: Happy Path mit echten Eingaben (drei Erfolge, Kapitel abgeschlossen)', async () => {
   const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
   try {
     const campus = await getCampus(g);
@@ -234,7 +242,7 @@ await runTest('ch1: Happy Path mit echten Eingaben (drei Erfolge, Kapitel abgesc
   }
 });
 
-await runTest('ch1: Fehlerpfad – Fehlversuche, Mitleids-Tipps, Rettungswege, 24 h warten', async () => {
+await standardTest('ch1: Fehlerpfad – Fehlversuche, Mitleids-Tipps, Rettungswege, 24 h warten', async () => {
   const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
   try {
     const campus = await getCampus(g);
@@ -336,7 +344,7 @@ await runTest('ch1: Fehlerpfad – Fehlversuche, Mitleids-Tipps, Rettungswege, 2
   }
 });
 
-await runTest('ch1: debugSolve() löst das Kapitel und setzt gültige Zugangsdaten', async () => {
+await standardTest('ch1: debugSolve() löst das Kapitel und setzt gültige Zugangsdaten', async () => {
   const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
   try {
     await waitStep(g, 'login');
@@ -368,7 +376,7 @@ async function clickHud(g, id) {
 
 const chapterStatus = (g) => g.eval(() => window.__EDU_DEBUG.getSceneStatus('Ch1Registration'));
 
-await runTest('ch1: Pause hält das Kapitel an (auch mitten im Laden), „Weiter“ setzt fort', async () => {
+await standardTest('ch1: Pause hält das Kapitel an (auch mitten im Laden), „Weiter“ setzt fort', async () => {
   const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
   try {
     const campus = await getCampus(g);
@@ -412,7 +420,7 @@ await runTest('ch1: Pause hält das Kapitel an (auch mitten im Laden), „Weiter
   }
 });
 
-await runTest('ch1: „Kapitel neu starten“ setzt das Kapitel sauber zurück (keine Reste, keine doppelten Listener)', async () => {
+await standardTest('ch1: „Kapitel neu starten“ setzt das Kapitel sauber zurück (keine Reste, keine doppelten Listener)', async () => {
   const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
   try {
     const campus = await getCampus(g);
@@ -487,7 +495,7 @@ await runTest('ch1: „Kapitel neu starten“ setzt das Kapitel sauber zurück (
 // Spielminuten und Echtzeit über __EDU_DEBUG.getState() bzw. das Event-Protokoll.
 // -----------------------------------------------------------------------------
 
-if (process.env.CH1_BALANCE) {
+if (IS_BALANCE_ONLY) {
   await runTest('ch1: Balance – normaler Lauf mit typischen Fehlern (Messung)', async () => {
     const g = await launchGame({ query: QUERY, ignoreErrors: IGNORE_ERRORS });
     const think = (ms) => g.wait(ms);

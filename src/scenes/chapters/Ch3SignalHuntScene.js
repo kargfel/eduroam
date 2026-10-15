@@ -1041,14 +1041,16 @@ class Ch3SignalHuntScene extends ChapterScene {
   }
 
   /**
-   * Kapitel geschafft (idempotent). NO_DEADZONE nur bei echtem Abschluss ohne Abbruch.
+   * Kapitel geschafft (idempotent). NO_DEADZONE nur bei echtem Abschluss ohne Abbruch –
+   * nicht beim USB-Stick-Gnadenabschluss und nicht bei debugSolve (Debug ist keine Leistung).
    * @param {{mercy?: boolean, solvedBy?: string|null}} [opts]
    */
   finishChapter({ mercy = false, solvedBy = null } = {}) {
     if (this.isFinished || !this.sim) return;
     const sim = this.sim;
     this.activeModal = null;
-    if (!mercy && sim.disconnects === 0) this.achievement('NO_DEADZONE');
+    const isEarned = !mercy && !solvedBy;
+    if (isEarned && sim.disconnects === 0) this.achievement('NO_DEADZONE');
     this.setObjective(Ch3Logic.TEXTS.OBJECTIVES.DONE);
     this.lastObjective = Ch3Logic.TEXTS.OBJECTIVES.DONE;
     if (!mercy) this.safeToast(Ch3Logic.fill(Ch3Logic.TEXTS.TOASTS.DONE, { file: sim.fileName }), { variant: 'success' });

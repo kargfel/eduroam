@@ -110,7 +110,7 @@ const CONFIG = (() => {
       short: 'Ticket lösen',
       intro:
         'Zu viele Fehlversuche: Dein Konto wurde vorsorglich gesperrt.\n\n' +
-        'Jetzt hilft nur noch der IT-Service-Desk. Sprechzeiten: Mo–Do 09:00–11:00. ' +
+        'Jetzt hilft nur noch das IT.Service Center. Sprechzeiten: Mo–Do 09:00–11:00. ' +
         'Ticketsystem: rund um die Uhr. Antwortzeit: ja.',
     },
   ];
@@ -132,7 +132,7 @@ const CONFIG = (() => {
     PHISHED: { id: 'PHISHED', title: 'Kevin sagt danke', description: 'Dem Evil Twin vertraut. Autsch.' },
     // Kapitel 5
     TURNED_OFF_ON: { id: 'TURNED_OFF_ON', title: 'Aus und wieder an', description: 'Das Handy tatsächlich neu gestartet.' },
-    HELPDESK_HERO: { id: 'HELPDESK_HERO', title: 'Ticket gelöst', description: 'Den IT-Service-Desk besiegt.' },
+    HELPDESK_HERO: { id: 'HELPDESK_HERO', title: 'Ticket gelöst', description: 'Das IT.Service Center besiegt.' },
     // Global (vergibt GameState.finishRun)
     ON_TIME: { id: 'ON_TIME', title: 'Pünktlich wie die S-Bahn', description: 'Vor Vorlesungsbeginn (08:15) verbunden.' },
     ZEN_MASTER: { id: 'ZEN_MASTER', title: 'Innere Ruhe', description: 'Mit weniger als 40 % Frust verbunden.' },

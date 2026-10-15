@@ -407,7 +407,8 @@ await runTest('Kapitel 5 – debugSolve() aus schwierigem Zustand und Sprechzeit
     assert(data.officeHoursOpen === false, 'um 07:30 ist die Telefon-Sprechzeit zu');
     await g.eval(() => window.__EDU_DEBUG.addMinutes(95)); // → 09:05
     await g.waitFor(() => window.__EDU_DEBUG.getChapterScene().getDebugInfo().officeHoursOpen === true, null, { timeout: limit(3000) });
-    await g.wait(300);
+    // Die Handy-Uhr aktualisiert sich nur jede Sekunde (Szenen-Zeit) – fürs Foto abwarten
+    await g.waitFor(() => window.__EDU_DEBUG.getChapterScene().phone.getClockText() === GameState.getClockLabel(), null, { timeout: limit(3000) });
     await g.shot('ch5-hours-open');
 
     // Schwieriger Zustand: Pop-up offen, Power-Menü offen, Text getippt, Dropdown-Liste offen
@@ -425,14 +426,23 @@ await runTest('Kapitel 5 – debugSolve() aus schwierigem Zustand und Sprechzeit
 
     await g.eval(() => window.__EDU_DEBUG.clearEvents());
     const before = await g.state();
-    await g.eval(() => window.__EDU_DEBUG.solve());
-    await waitForStep(g, 'done', limit(3000));
-    data = await info(g);
-    assert(data.progress === 1 && data.statusLabel === 'Gelöst', `Ticket gelöst (${data.statusLabel})`);
+    // solve() und Zustand im selben Schritt lesen (unter Last kann der Kapitelwechsel sonst schon laufen)
+    const solved = await g.eval(() => {
+      window.__EDU_DEBUG.solve();
+      const scene = window.__EDU_DEBUG.getChapterScene();
+      return { data: scene.getDebugInfo(), isDropdownOpen: UI.Dropdown.isAnyOpen(scene), isInputFocused: UI.TextInput.isAnyFocused(scene) };
+    });
+    data = solved.data;
+    assert(data.step === 'done' && data.progress === 1 && data.statusLabel === 'Gelöst', `Ticket gelöst (${data.statusLabel})`);
     assert(data.phone.wifi === 'connected' && data.phone.state === 'on' && data.phone.menu.length === 0, 'Handy verbunden, Menü zu');
-    assert(!(await g.eval(() => UI.Dropdown.isAnyOpen(window.__EDU_DEBUG.getChapterScene()))), 'Dropdown-Liste geschlossen');
-    await g.wait(250);
-    await g.shot('ch5-debug-solved');
+    assert(!solved.isDropdownOpen && !solved.isInputFocused, 'Dropdown-Liste zu, kein Feld fokussiert');
+    assert(data.popups.every((p) => !p.isReady), 'Pop-ups werden geschlossen');
+    // Foto, sobald der Stempel liegt – vor dem Kapitelwechsel (CHAPTER_END_DELAY), bei angehaltener Szene
+    await g.waitFor(() => {
+      const scene = window.__EDU_DEBUG.getChapterScene();
+      return !scene || scene.children.list.some((o) => o.isStamp && o.alpha > 0.9 && Math.abs(o.scaleX - 1) < 0.02);
+    }, null, { timeout: limit(3000) });
+    if (await g.eval((key) => window.__EDU_DEBUG.getSceneStatus(key) === 'running', SCENE_KEY)) await freezeShot(g, 'ch5-debug-solved');
 
     await g.waitFor(() => window.__EDU_DEBUG.events.some((e) => e.event === EVENTS.CHAPTER_COMPLETE && e.payload.chapterId === 5),
       null, { timeout: limit(6000) });

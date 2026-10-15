@@ -646,7 +646,7 @@ Erfolge: `CERT_INSPECTOR`, `PHISHED`.
 
 ### Kapitel 5 – Der IT-Helpdesk (`Ch5HelpdeskScene`, `Ch5Logic`)
 
-Ticketsystem/Chat mit dem IT-Service-Desk (`CAMPUS.helpdesk`). Konto gesperrt (zu viele
+Ticketsystem/Chat mit dem IT.Service Center (`CAMPUS.helpdesk`). Konto gesperrt (zu viele
 Fehlversuche; ggf. Bezug auf `phished`). Bosskampf: Balken „Ticket-Status“ (offen → gelöst)
 als Boss-HP; jede Runde eine Standardantwort/-frage des Helpdesks, 3–4 Antwortoptionen
 (richtig = Fortschritt, falsch = Frust). Parallel ein **Pop-up-Gewitter** (Umfragen,
