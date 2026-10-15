@@ -59,7 +59,7 @@ Das Spiel ist rein statisch, ein Backend gibt es nicht. Eine der drei Varianten 
 per `./deploy/update.sh`. Repo: https://github.com/kargfel/eduroam
 
 **Moodle-Paket bauen** (ohne persönliches Hosting): `node tools/build-moodle-zip.mjs`
-erzeugt `dist/Spiel.zip`.
+erzeugt `dist/Spiel.zip` und die bereinigte `dist/PROMPT.md`.
 <!-- /nur-im-repo -->
 
 ## Entwicklung

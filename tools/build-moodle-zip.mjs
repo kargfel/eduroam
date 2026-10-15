@@ -8,7 +8,7 @@
  * Zum Schluss prüft das Skript, dass keine persönlichen Hosting-Angaben übrig sind,
  * und bricht sonst ab.
  *
- * Aufruf:   node tools/build-moodle-zip.mjs        → dist/Spiel.zip
+ * Aufruf:   node tools/build-moodle-zip.mjs        → dist/Spiel.zip + dist/PROMPT.md
  * Benötigt: git und zip (macOS/Linux)
  */
 import { execFileSync } from 'node:child_process';
@@ -97,6 +97,11 @@ function main() {
 
     const sizeMb = (fs.statSync(OUTPUT_FILE).size / 1024 / 1024).toFixed(1);
     console.log(`✓ ${path.relative(ROOT, OUTPUT_FILE)} erstellt: ${files.length} Dateien, ${sizeMb} MB`);
+
+    // Bereinigte Prompt-Doku zusätzlich einzeln (Moodle Teil 1: Screenshot + Prompt)
+    const promptFile = path.join(path.dirname(OUTPUT_FILE), 'PROMPT.md');
+    fs.copyFileSync(path.join(packageDir, 'PROMPT.md'), promptFile);
+    console.log(`✓ ${path.relative(ROOT, promptFile)} erstellt (ohne Hosting-Abschnitte)`);
   } finally {
     fs.rmSync(stagingRoot, { recursive: true, force: true });
   }
