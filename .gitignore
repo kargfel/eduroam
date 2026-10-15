@@ -11,6 +11,9 @@ tests/e2e/review-*.mjs
 # System
 .DS_Store
 
-# Lokale Server-Einstellungen und Logs (siehe docs/DEPLOYMENT.md)
+# Lokale Einstellungen (z. B. für docker compose) und Logs
 .env
 *.log
+
+# Gebaute Pakete (tools/build-moodle-zip.mjs)
+dist/

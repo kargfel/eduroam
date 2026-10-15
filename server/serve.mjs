@@ -56,7 +56,7 @@ const FALLBACK_MIME_TYPE = 'application/octet-stream';
 
 /** vendor/ ändert sich nur mit einer neuen Phaser-Version → länger cachen. */
 const CACHE_CONTROL_VENDOR = 'public, max-age=604800';
-/** Alles andere: Browser/Cloudflare fragen per ETag nach, ob es eine neue Version gibt. */
+/** Alles andere: Browser und Caches fragen per ETag nach, ob es eine neue Version gibt. */
 const CACHE_CONTROL_DEFAULT = 'no-cache';
 
 const SECURITY_HEADERS = Object.freeze({

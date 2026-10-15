@@ -86,15 +86,14 @@ eduroam-simulator/
 │   └── e2e/harness.mjs, run-all.mjs  Setup  Playwright-Helfer
 │       e2e/*.mjs               je Bereich   Browser-Tests (server.mjs: Hosting über HTTP + CSP)
 ├── server/serve.mjs            Hosting      Webserver ohne Abhängigkeiten (Port 2222, Freigabeliste, CSP)
-├── Dockerfile, docker-compose.yml, .dockerignore   Hosting   Container für den Homeserver
-├── deploy/                     Hosting      update.sh, systemd-Dienst, Traefik-Beispiel
+├── Dockerfile, docker-compose.yml, .dockerignore   Hosting   Container zum Selbsthosten
 ├── screenshots/                Tests        PNGs (Moodle + visuelle Prüfung)
-└── docs/                       ARCHITECTURE.md, RESEARCH.md, DEPLOYMENT.md
+└── docs/                       ARCHITECTURE.md, RESEARCH.md
 ```
 
 Hosting-Regel: Spielcode darf weder `eval` noch `new Function` benutzen und keine
 weiteren Inline-Scripts in `index.html` brauchen, sonst greift die Content-Security-Policy
-des Servers (Details in `docs/DEPLOYMENT.md`).
+des Servers (Details in `server/serve.mjs`).
 
 **Dateihoheit:** Jede:r ändert nur die eigenen Dateien. Wer einen Fehler in fremden
 Dateien findet, baut lokal einen Workaround und meldet den Fehler im Ergebnisbericht.

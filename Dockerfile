@@ -1,6 +1,6 @@
 # Hosting-Image für den eduroam-Simulator: Node-Webserver ohne Abhängigkeiten.
 # Enthält nur Spieldateien und Server – keine Tests, keine Doku, kein .git.
-# Bauen/Starten: docker compose up -d --build   (siehe docs/DEPLOYMENT.md)
+# Bauen/Starten: docker compose up -d --build   (siehe README.md, „Selbst hosten“)
 FROM node:24-alpine
 
 ENV NODE_ENV=production \

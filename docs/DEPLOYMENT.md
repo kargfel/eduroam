@@ -115,8 +115,22 @@ Läuft auf dem Host eine Firewall (z. B. `ufw`), muss sie Verbindungen aus dem
 Docker-Netz bzw. von Traefik auf Port 2222 erlauben. Optional kann Traefik `/healthz`
 als Healthcheck nutzen.
 
-Nutzt Traefik den Docker-Provider statt der Datei-Konfiguration, stehen passende Labels
-auskommentiert in `docker-compose.yml`.
+Nutzt Traefik den Docker-Provider statt der Datei-Konfiguration, kommen diese Labels
+(plus das Traefik-Netzwerk) an den Dienst in `docker-compose.yml`:
+
+```yaml
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.eduroam.rule=Host(`eduroam.felixkarg.de`)
+      - traefik.http.routers.eduroam.entrypoints=web
+      - traefik.http.services.eduroam.loadbalancer.server.port=2222
+# …und auf oberster Ebene:
+networks:
+  proxy:
+    external: true
+```
 
 ---
 

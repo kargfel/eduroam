@@ -4,7 +4,9 @@ Ein satirisches Browserspiel, das spielbar macht, wie mühsam Registrierung und 
 eduroam sein können. Du bist Erstsemester an der DHBW Stuttgart, es ist 07:30 Uhr, um
 08:15 beginnt die Vorlesung – und du brauchst nur „kurz“ WLAN.
 
+<!-- nur-im-repo -->
 **Spielen:** https://eduroam.felixkarg.de
+<!-- /nur-im-repo -->
 
 ## Die fünf Kapitel
 
@@ -25,29 +27,40 @@ Highscore und Erfolge speichert der Browser.
 | **Kapitel 3: Signaljagd** | **Kapitel 4: Zertifikat** |
 | ![Campus mit Funklöchern und S21-Baustelle](screenshots/moodle-3-kapitel3.png) | ![Evil Twin mit Tippfehler-Servername](screenshots/moodle-4-kapitel4.png) |
 
-## Lokal starten
+## Sofort spielen
 
-- `index.html` doppelklicken – fertig. Ohne Internet lädt das Spiel Phaser aus `vendor/`.
-- Oder über HTTP wie auf dem Server: `npm start` → http://localhost:2222
+`index.html` doppelklicken – fertig. Keine Installation, läuft auch offline
+(Phaser liegt als Kopie in `vendor/`).
 
 **Steuerung:** Maus und Tastatur; in Kapitel 3 Pfeiltasten oder WASD.
 
 **Für Präsentationen** (URL-Parameter): `?unlock=all` schaltet alle Kapitel frei,
 `?chapter=3` springt direkt in Kapitel 3, `?mute=1` schaltet den Ton aus.
 
-## Hosting
+## Selbst hosten
 
-Der Homeserver liefert das Spiel per Docker auf Port 2222 aus; Traefik und ein
-Cloudflare Tunnel machen es unter `eduroam.felixkarg.de` erreichbar:
+Das Spiel ist rein statisch, ein Backend gibt es nicht. Eine der drei Varianten genügt:
 
-```bash
-git clone https://github.com/kargfel/eduroam.git /opt/eduroam
-cd /opt/eduroam
-docker compose up -d --build     # Updates später: ./deploy/update.sh
-```
+| Variante | Befehl im Projektordner | Adresse |
+|---|---|---|
+| Node.js ≥ 18 (ohne `npm install`) | `node server/serve.mjs` | http://localhost:2222 |
+| Docker | `docker compose up -d --build` | http://localhost:2222 |
+| Beliebiger Webserver (Apache, nginx, GitHub Pages …) | `index.html`, `src/` und `vendor/` hochladen | je nach Server |
 
-Komplette Anleitung inklusive Variante ohne Docker, Traefik/Cloudflare-Abgleich und
-Fehlersuche: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+- Anderer Port: `PORT=8080 node server/serve.mjs` bzw. in `.env` `EDUROAM_PORT=8080`
+  (Docker). Healthcheck: `/healthz`.
+- Der mitgelieferte Server liefert nur die Spieldateien aus und setzt Sicherheits-Header
+  inklusive Content-Security-Policy. Der Container läuft ohne Root-Rechte und mit
+  schreibgeschütztem Dateisystem.
+
+<!-- nur-im-repo -->
+**Eigenes Hosting** (Homeserver mit Traefik und Cloudflare Tunnel unter
+`eduroam.felixkarg.de`): Anleitung in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), Updates
+per `./deploy/update.sh`. Repo: https://github.com/kargfel/eduroam
+
+**Moodle-Paket bauen** (ohne persönliches Hosting): `node tools/build-moodle-zip.mjs`
+erzeugt `dist/Spiel.zip`.
+<!-- /nur-im-repo -->
 
 ## Entwicklung
 

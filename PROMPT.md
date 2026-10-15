@@ -49,6 +49,7 @@ sollten parallel arbeiten können, und für Teil 2 (Code-Review, Team-Parallelar
 Refactoring) ist eine klare Dateistruktur hilfreicher. Ohne Internet lädt das Spiel Phaser
 aus `vendor/phaser.min.js`.
 
+<!-- nur-im-repo -->
 ## Weitere Prompts im Verlauf
 
 1. *„After completing sync to github to this repo https://github.com/kargfel/eduroam“*: Die
@@ -63,3 +64,4 @@ aus `vendor/phaser.min.js`.
 3. *„Können wir das ganze etwas beschleunigen?“*: Hosting und Feinschliff wurden entkoppelt.
    Ein getesteter Zwischenstand ging sofort online, die große Review-Runde entfiel zugunsten
    einer kurzen Endabnahme.
+<!-- /nur-im-repo -->
