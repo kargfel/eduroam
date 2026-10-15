@@ -1,0 +1,18 @@
+{
+  "name": "eduroam-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "eduroam – Authentifizierung fehlgeschlagen (DHBW Stuttgart Edition): satirisches Phaser-3-Spiel",
+  "scripts": {
+    "start": "node server/serve.mjs",
+    "test:unit": "node --test \"tests/unit/*.test.js\"",
+    "test:e2e": "node tests/e2e/run-all.mjs",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

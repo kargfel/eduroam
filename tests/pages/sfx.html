@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SFX-Galerie – eduroam-Simulator</title>
+  <!--
+    sfx.html – Klang-Galerie und Testseite für SFX (src/audio/sfx.js), OHNE Phaser.
+    Lädt nur config, campus, core und sfx. Beim Laden wird jede Methode einmal aufgerufen
+    (noch ohne Nutzergeste → stille No-ops, dürfen nie werfen), Ergebnis in
+    window.__SFX_PRELOAD; danach window.__GALLERY_READY = true.
+    Erster Klick irgendwo = Nutzergeste → SFX.unlock(). window.__playAllSounds() spielt
+    alle Klänge nacheinander (für tests/e2e/sfx.mjs). Die Buttons sind für Menschen.
+  -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #0e2240; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #202124;
+    }
+    main {
+      width: 700px; padding: 26px 30px 22px; background: #f2f3ef; transform: rotate(-1deg);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 4px; font: bold 26px "American Typewriter", "Courier New", monospace; color: #2b2f36; }
+    p { margin: 0 0 16px; color: #5f6368; }
+    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    button {
+      padding: 9px 4px; border: 0; border-radius: 6px; background: #1a73e8; color: #fff;
+      font: 600 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor: pointer;
+    }
+    button:active { background: #1557b0; }
+    button.stamp { background: #e2001a; font-family: "Arial Black", Impact, sans-serif; letter-spacing: 0.5px; }
+    button.secondary { background: #ffffff; color: #1a73e8; border: 1px solid #dadce0; }
+    .row { display: flex; gap: 8px; margin-top: 14px; }
+    .row button { flex: 1; }
+    pre {
+      margin: 16px 0 0; padding: 10px 12px; background: #ffffff; border: 1px solid #dadce0;
+      font: 12px ui-monospace, Menlo, Consolas, monospace; color: #2b2f36; white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SFX-Galerie</h1>
+    <p>Alle Klänge sind live per WebAudio synthetisiert. Erster Klick entsperrt den Ton.</p>
+    <div class="grid" id="sounds"></div>
+    <div class="row">
+      <button class="secondary" id="hold-start">Warteschleife starten</button>
+      <button class="secondary" id="hold-stop">Warteschleife stoppen</button>
+      <button class="secondary" id="mute">Ton an/aus</button>
+    </div>
+    <pre id="status">lädt …</pre>
+  </main>
+
+  <script src="../../src/config.js"></script>
+  <script src="../../src/campus.js"></script>
+  <script src="../../src/core/rng.js"></script>
+  <script src="../../src/core/events.js"></script>
+  <script src="../../src/core/storage.js"></script>
+  <script src="../../src/core/scoring.js"></script>
+  <script src="../../src/core/gameState.js"></script>
+  <script src="../../src/audio/sfx.js"></script>
+  <script>
+    (() => {
+      /** Pause zwischen den Klängen beim Durchspielen (ms). */
+      const PLAY_GAP_MS = 140;
+      const statusBox = document.getElementById('status');
+
+      /** Zeigt den SFX-Zustand an. */
+      const renderStatus = () => {
+        const info = SFX.getDebugInfo();
+        statusBox.textContent =
+          `AudioContext: ${info.contextState} · stumm: ${info.muted ? 'ja' : 'nein'} · ` +
+          `gespielt: ${info.played} · Fehler: ${info.errors}\n` +
+          `Warteschleife: ${info.holdMusicActive ? 'läuft' : 'aus'} (Takte geplant: ${info.holdMusicBars})` +
+          (info.lastError ? `\nLetzter Fehler: ${info.lastError}` : '');
+      };
+
+      /** Ruft eine SFX-Methode auf und merkt, falls sie (vertragswidrig) wirft. */
+      const callSafely = (name, thrown, ...args) => {
+        try {
+          return SFX[name](...args);
+        } catch (err) {
+          thrown.push(`${name}: ${err && err.message}`);
+          return undefined;
+        }
+      };
+
+      // Diese Galerie soll klingen: Stummschaltung explizit aus (Testumgebung hängt sonst ?mute=1 an).
+      RUNTIME.muted = false;
+
+      // 1) Jede Methode einmal aufrufen – noch ohne Nutzergeste, also ohne AudioContext.
+      const preThrown = [];
+      const called = [];
+      const call = (name, ...args) => {
+        called.push(name);
+        return callSafely(name, preThrown, ...args);
+      };
+      call('init');
+      call('setMuted', false);
+      call('isMuted');
+      call('toggleMuted');
+      call('toggleMuted');
+      SFX.SOUND_NAMES.forEach((name) => call(name));
+      call('startHoldMusic');
+      call('stopHoldMusic');
+      window.__SFX_PRELOAD = { thrown: preThrown, called, info: SFX.getDebugInfo(), muted: SFX.isMuted() };
+
+      // 2) Erste Nutzergeste: Audio entsperren (so wie BootScene es im Spiel tut).
+      document.addEventListener('click', () => {
+        Promise.resolve(callSafely('unlock', preThrown)).then((isRunning) => {
+          window.__SFX_UNLOCKED = isRunning;
+          renderStatus();
+        });
+      });
+
+      // 3) Für den Browser-Test: alle Klänge nacheinander abspielen.
+      window.__playAllSounds = async () => {
+        const thrown = [];
+        for (const name of SFX.SOUND_NAMES) {
+          callSafely(name, thrown);
+          renderStatus();
+          await new Promise((resolve) => setTimeout(resolve, PLAY_GAP_MS));
+        }
+        return { thrown, soundCount: SFX.SOUND_NAMES.length, info: SFX.getDebugInfo() };
+      };
+
+      // Buttons für Menschen
+      const grid = document.getElementById('sounds');
+      SFX.SOUND_NAMES.forEach((name) => {
+        const button = document.createElement('button');
+        button.textContent = name;
+        if (name === 'stamp') button.className = 'stamp';
+        button.addEventListener('click', () => {
+          SFX.unlock().then(() => {
+            SFX[name]();
+            renderStatus();
+          });
+        });
+        grid.appendChild(button);
+      });
+      document.getElementById('hold-start').addEventListener('click', () => SFX.unlock().then(() => SFX.startHoldMusic()));
+      document.getElementById('hold-stop').addEventListener('click', () => SFX.stopHoldMusic());
+      document.getElementById('mute').addEventListener('click', () => {
+        SFX.toggleMuted();
+        renderStatus();
+      });
+
+      renderStatus();
+      window.__GALLERY_READY = true;
+    })();
+  </script>
+</body>
+</html>

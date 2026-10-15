@@ -1,0 +1,23 @@
+# Beispiel für Traefiks File-Provider (dynamische Konfiguration) – nur zum Abgleich
+# mit der bestehenden Konfiguration. Werte in <…> bzw. die IP an das eigene Setup anpassen.
+http:
+  routers:
+    eduroam:
+      rule: "Host(`eduroam.felixkarg.de`)"
+      entryPoints:
+        - web # bzw. websecure – je nachdem, wohin cloudflared verbindet
+      service: eduroam
+
+  services:
+    eduroam:
+      loadBalancer:
+        servers:
+          # Traefik direkt auf dem Host:            http://127.0.0.1:2222
+          # Traefik im Docker auf demselben Host:   http://host.docker.internal:2222
+          #   (dafür beim Traefik-Container: extra_hosts: ["host.docker.internal:host-gateway"])
+          # Traefik auf einem anderen Rechner:      http://<IP-des-Homeservers>:2222
+          - url: "http://host.docker.internal:2222"
+        healthCheck:
+          path: /healthz
+          interval: 30s
+          timeout: 3s

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galerie – Formular-Widgets (Button, TextInput, Dropdown, Checkbox, Modal, Toast)</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #091a33; }
+    #game { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <!--
+    Eigenständige Widget-Galerie (ui-forms). Zeigt alle Formular-Widgets in mehreren
+    Zuständen, auch in einem verschobenen/verschachtelten Container, und legt sie für
+    Browser-Tests als window.__W ab. Ereignisse landen in window.__LOG.
+    Aufruf: tests/pages/forms.html (optional ?mute=1)
+  -->
+  <script src="../../vendor/phaser.min.js"></script>
+  <script src="../../src/config.js"></script>
+  <script src="../../src/campus.js"></script>
+  <!-- Storage wird von SFX zur Laufzeit gelesen -->
+  <script src="../../src/core/rng.js"></script>
+  <script src="../../src/core/events.js"></script>
+  <script src="../../src/core/storage.js"></script>
+  <script src="../../src/audio/sfx.js"></script>
+  <script src="../../src/ui/theme.js"></script>
+  <script src="../../src/ui/textures.js"></script>
+  <script src="../../src/ui/widgets/Button.js"></script>
+  <script src="../../src/ui/widgets/TextInput.js"></script>
+  <script src="../../src/ui/widgets/Dropdown.js"></script>
+  <script src="../../src/ui/widgets/Checkbox.js"></script>
+  <script src="../../src/ui/widgets/Modal.js"></script>
+  <script src="../../src/ui/widgets/Toast.js"></script>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mute') === '1') RUNTIME.muted = true;
+
+      const LOG = (window.__LOG = []);
+      const log = (type, id, payload) => LOG.push({ type, id, payload });
+
+      /** Layout der Galerie (px). */
+      const L = {
+        CARD_LEFT: { x: 16, y: 40, width: 372, height: 548 },
+        INPUT_X: 32,
+        INPUT_WIDTH: 340,
+        INPUT_TOP: 52,
+        INPUT_PITCH: 90,
+        RIGHT_X: 404,
+        RIGHT_WIDTH: 380,
+        BUTTON_TOP: 64,
+        BUTTON_PITCH: 48,
+        BUTTON_WIDTH: 184,
+        BUTTON_HEIGHT: 40,
+        FORM_CARD: { x: 404, y: 262, width: 380, height: 326 },
+      };
+
+      /** y↔z wie auf einer englischen Tastatur (Troll aus Kapitel 2). */
+      const swapYZ = (char) => ({ y: 'z', z: 'y', Y: 'Z', Z: 'Y' }[char] || char);
+
+      class FormsGalleryScene extends Phaser.Scene {
+        constructor() {
+          super({ key: 'FormsGallery' });
+        }
+
+        create() {
+          if (typeof Textures !== 'undefined' && typeof Textures.generateAll === 'function') {
+            Textures.generateAll(this);
+          }
+          const W = (window.__W = { scene: this, buttons: {}, inputs: {}, dropdowns: {}, checkboxes: {}, containers: {} });
+
+          UI.text(this, 16, 12, 'Formular-Widgets · Galerie', { size: 16, bold: true, color: CONFIG.CSS.TEXT_INVERSE });
+          UI.text(this, 784, 14, 'ui-forms · Phaser 3.90', { size: 12, color: '#9fb3d1', origin: { x: 1, y: 0 } });
+
+          this.buildInputCard(W);
+          this.buildButtons(W);
+          this.buildFormCard(W);
+
+          W.openDemoModal = (opts) => this.openDemoModal(W, opts);
+          W.openBackdropModal = () => this.openBackdropModal(W);
+          W.openDropdownModal = () => this.openDropdownModal(W);
+          W.showToasts = () => this.showToasts(W);
+          window.__GALLERY_READY = true;
+        }
+
+        /** Linke Karte: Eingabefelder in allen Zuständen. */
+        buildInputCard(W) {
+          const card = L.CARD_LEFT;
+          const g = this.add.graphics();
+          g.fillStyle(CONFIG.COLORS.SURFACE, 1);
+          g.fillRoundedRect(card.x, card.y, card.width, card.height, 8);
+
+          const x = L.INPUT_X;
+          const row = (i) => L.INPUT_TOP + i * L.INPUT_PITCH;
+          const track = (id, input) => {
+            input.on('change', (value) => log('change', id, value));
+            input.on('submit', (value) => log('submit', id, value));
+            input.on('focus', () => log('focus', id));
+            input.on('blur', () => log('blur', id));
+            W.inputs[id] = input;
+            return input;
+          };
+
+          track('email', new UI.TextInput(this, x, row(0), {
+            width: L.INPUT_WIDTH, label: 'Identität', placeholder: 'kennung@lehre.dhbw-stuttgart.de',
+          }));
+          track('password', new UI.TextInput(this, x, row(1), {
+            width: L.INPUT_WIDTH, label: 'Passwort', password: true, showToggle: true,
+            hint: UI.TextInput.CREDENTIALS_HINT,
+          }));
+          track('zy', new UI.TextInput(this, x, row(2), {
+            width: L.INPUT_WIDTH, label: 'Kurs (Tastatur steht auf EN: y ↔ z)', placeholder: 'z. B. WWI26A',
+            transformChar: swapYZ, hint: 'transformChar tauscht y und z',
+          }));
+          track('domain', new UI.TextInput(this, x, row(3), {
+            width: L.INPUT_WIDTH, label: 'Domain', value: 'radius.dhbw-stutgart.de',
+            error: 'Domain stimmt nicht überein.',
+          }));
+          track('disabled', new UI.TextInput(this, x, row(4), {
+            width: L.INPUT_WIDTH, label: 'Anonyme Identität', value: CAMPUS.anonymousIdentity,
+            disabled: true, hint: 'Vom Administrator festgelegt (deaktiviert)',
+          }));
+          track('narrow', new UI.TextInput(this, x, row(5), {
+            width: 168, label: 'Kurzes Feld (scrollt)', maxLength: 80,
+            value: 'Ein ziemlich langer Text, der nicht reinpasst',
+          }));
+          W.buttons.submit = new UI.Button(this, x + 182, row(5) + 22, {
+            text: 'Anmelden', width: 158, height: 40, fontSize: 16,
+            onClick: () => log('click', 'submit'),
+          });
+        }
+
+        /** Rechts oben: alle Button-Varianten auf dunklem Grund. */
+        buildButtons(W) {
+          UI.text(this, L.RIGHT_X, 44, 'BUTTONS', { size: 11, bold: true, color: '#9fb3d1' });
+          const col = (i) => L.RIGHT_X + i * (L.BUTTON_WIDTH + 12);
+          const row = (i) => L.BUTTON_TOP + i * L.BUTTON_PITCH;
+          const make = (id, column, line, opts) => {
+            const button = new UI.Button(this, col(column), row(line), {
+              width: L.BUTTON_WIDTH, height: L.BUTTON_HEIGHT, fontSize: 16, ...opts,
+              onClick: () => log('click', id),
+            });
+            W.buttons[id] = button;
+            return button;
+          };
+          make('primary', 0, 0, { text: 'Verbinden', variant: 'primary' });
+          make('secondary', 1, 0, { text: 'Abbrechen', variant: 'secondary' });
+          make('danger', 0, 1, { text: 'Netzwerk entfernen', variant: 'danger' });
+          make('success', 1, 1, { text: 'Verbunden', variant: 'success' });
+          make('ghost', 0, 2, { text: 'Später', variant: 'ghost', onDark: true });
+          make('link', 1, 2, { text: 'Passwort vergessen?', variant: 'link', onDark: true });
+          make('disabled', 0, 3, { text: 'Akzeptieren', variant: 'primary', disabled: true });
+          make('icon', 1, 3, {
+            text: 'WLAN suchen', variant: 'secondary',
+            icon: this.textures.exists('icon-wifi-3') ? 'icon-wifi-3' : null,
+          });
+        }
+
+        /** Rechts unten: verschobener Container mit Dropdowns, verschachteltem Container, Checkboxen. */
+        buildFormCard(W) {
+          const frame = L.FORM_CARD;
+          const card = this.add.container(frame.x, frame.y);
+          W.containers.formCard = card;
+          const g = this.add.graphics();
+          g.fillStyle(CONFIG.COLORS.SURFACE, 1);
+          g.fillRoundedRect(0, 0, frame.width, frame.height, 8);
+          card.add(g);
+
+          const eap = new UI.Dropdown(this, 16, 14, {
+            width: 170, label: 'EAP-Methode', maxVisible: 4,
+            options: ['PEAP', 'TLS', 'TTLS', 'PWD', 'SIM', 'AKA', "AKA'"],
+          });
+          const ca = new UI.Dropdown(this, 198, 14, {
+            width: 166, label: 'CA-Zertifikat', error: 'Pflichtfeld',
+            onChange: () => ca.setError(null),
+            options: [
+              { value: 'system', label: 'Systemzertifikate verwenden' },
+              { value: 'install', label: 'Zertifikate installieren' },
+              { value: 'none', label: 'Nicht validieren', disabled: true, hint: 'Seit Android 11 nicht mehr verfügbar.' },
+              { value: 'unset', label: 'Bitte auswählen' },
+            ],
+          });
+          card.add([eap, ca]);
+
+          // Zweite Ebene: verschachtelter Container
+          const nested = this.add.container(16, 96);
+          W.containers.nested = nested;
+          const phase2 = new UI.Dropdown(this, 0, 0, {
+            width: 200, label: 'Phase-2-Authentifizierung', value: 'MSCHAPV2',
+            options: ['Keine', 'MSCHAPV2', 'GTC', 'PAP'],
+          });
+          const note = UI.text(this, 214, 32, 'verschachtelt,\nverschoben', { size: 12, color: CONFIG.CSS.TEXT_MUTED });
+          nested.add([phase2, note]);
+          card.add(nested);
+
+          const trackDropdown = (id, dropdown) => {
+            dropdown.on('change', (value) => log('change', id, value));
+            dropdown.on('open', () => log('open', id));
+            dropdown.on('close', () => log('close', id));
+            W.dropdowns[id] = dropdown;
+          };
+          trackDropdown('eap', eap);
+          trackDropdown('ca', ca);
+          trackDropdown('phase2', phase2);
+
+          const makeCheckbox = (id, y, opts) => {
+            const checkbox = new UI.Checkbox(this, 16, y, opts);
+            checkbox.on('change', (checked) => log('change', id, checked));
+            card.add(checkbox);
+            W.checkboxes[id] = checkbox;
+          };
+          makeCheckbox('tos', 182, { label: 'Nutzungsordnung gelesen und akzeptiert' });
+          makeCheckbox('remember', 210, { label: 'Passwort speichern', checked: true });
+          makeCheckbox('disabled', 238, { label: 'Zertifikat ignorieren (gesperrt)', disabled: true });
+
+          const openModal = new UI.Button(this, 16, 276, {
+            text: 'Dialog öffnen', width: 168, height: 36, fontSize: 15, variant: 'secondary',
+            onClick: () => {
+              log('click', 'openModal');
+              W.openDemoModal();
+            },
+          });
+          const toasts = new UI.Button(this, 196, 276, {
+            text: 'Toasts zeigen', width: 168, height: 36, fontSize: 15, variant: 'secondary',
+            onClick: () => {
+              log('click', 'showToasts');
+              W.showToasts();
+            },
+          });
+          card.add([openModal, toasts]);
+          W.buttons.openModal = openModal;
+          W.buttons.showToasts = toasts;
+        }
+
+        openDemoModal(W, opts = {}) {
+          const modal = new UI.Modal(this, {
+            icon: 'warning',
+            title: 'Zertifikat prüfen?',
+            text: 'Der Server „radius.dhbw-stuttgart.de“ möchte sich mit einem Zertifikat ' +
+              'von „GEANT TLS RSA 1“ ausweisen. Prüfe den Fingerabdruck, bevor du vertraust.',
+            content: (container, innerWidth) => {
+              const input = new UI.TextInput(this, 0, 0, {
+                width: innerWidth, label: 'Notiz (Tab-Test im Dialog)', placeholder: 'optional',
+              });
+              container.add(input);
+              W.inputs.modalNote = input;
+              return input.getTotalHeight();
+            },
+            buttons: [
+              { text: 'Abbrechen', variant: 'secondary', onClick: () => log('modal', 'cancel') },
+              { text: 'Details', variant: 'ghost', keepOpen: true, onClick: () => log('modal', 'details') },
+              { text: 'Vertrauen', variant: 'danger', onClick: () => log('modal', 'trust') },
+            ],
+            onClose: (result) => log('modalClose', result.reason, result.index),
+            ...opts,
+          });
+          W.modal = modal;
+          return modal;
+        }
+
+        openBackdropModal(W) {
+          const modal = new UI.Modal(this, {
+            icon: 'info',
+            title: 'Synchronisation läuft',
+            text: 'Die Synchronisation mit dem WLAN-System kann bis zu 24 Stunden dauern.',
+            closeOnBackdrop: true,
+            buttons: [{ text: 'OK' }],
+            onClose: (result) => log('modalClose', result.reason, result.index),
+          });
+          W.modal = modal;
+          return modal;
+        }
+
+        /** Dialog mit Dropdown im eigenen Inhalt (Liste muss über dem Dialog liegen). */
+        openDropdownModal(W) {
+          const modal = new UI.Modal(this, {
+            icon: 'question',
+            title: 'EAP-Methode wählen',
+            content: (container, innerWidth) => {
+              const dropdown = new UI.Dropdown(this, 0, 0, {
+                width: innerWidth, label: 'EAP-Methode', options: ['PEAP', 'TLS', 'TTLS'],
+              });
+              dropdown.on('change', (value) => log('change', 'modalEap', value));
+              container.add(dropdown);
+              W.dropdowns.modalEap = dropdown;
+              return dropdown.getTotalHeight();
+            },
+            buttons: [{ text: 'Fertig' }],
+          });
+          W.modal = modal;
+          return modal;
+        }
+
+        showToasts() {
+          UI.toast(this, 'Gespeichert');
+          UI.toast(this, 'Authentifizierungsproblem', { variant: 'error' });
+          UI.toast(this, 'Verbunden, kein Internet', { variant: 'success', duration: 8000 });
+          UI.toast(this, 'Akku bei 9 % – Energiesparmodus empfohlen', { variant: 'warning', duration: 8000 });
+        }
+      }
+
+      new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: 'game',
+        width: CONFIG.WIDTH,
+        height: CONFIG.HEIGHT,
+        backgroundColor: CONFIG.CSS.BG,
+        banner: false,
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        scene: [FormsGalleryScene],
+      });
+    })();
+  </script>
+</body>
+</html>

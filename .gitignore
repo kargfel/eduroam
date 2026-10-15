@@ -1,0 +1,16 @@
+# Abhängigkeiten (per npm install wiederherstellbar)
+node_modules/
+
+# Test-Artefakte: Screenshots erzeugen die Tests neu; versioniert werden nur die Moodle-Bilder
+screenshots/*
+!screenshots/moodle-*.png
+
+# Temporäre Review-Skripte
+tests/e2e/review-*.mjs
+
+# System
+.DS_Store
+
+# Lokale Server-Einstellungen und Logs (siehe docs/DEPLOYMENT.md)
+.env
+*.log

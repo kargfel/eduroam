@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eduroam – Authentifizierung fehlgeschlagen (DHBW Stuttgart Edition)</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #091a33;
+    }
+    #game {
+      width: 100vw;
+      height: 100vh;
+    }
+    #boot-error {
+      display: none;
+      position: fixed;
+      inset: 0;
+      padding: 48px;
+      color: #f3f6fb;
+      font: 18px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    #boot-error strong { color: #f5c400; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="boot-error" role="alert">
+    <p><strong>Phaser konnte nicht geladen werden.</strong></p>
+    <p>Kein Internet? Dann bist du vermutlich gerade im eduroam.<br>
+       Lege <code>vendor/phaser.min.js</code> neben diese Datei oder versuch es mit mobilen Daten.</p>
+  </div>
+  <noscript>Dieses Spiel braucht JavaScript.</noscript>
+
+  <!-- Phaser 3 via CDN; ohne Netz greift die lokale Kopie in vendor/ -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script>window.Phaser || document.write('<script src="vendor/phaser.min.js"><\/script>');</script>
+  <script>if (!window.Phaser) document.getElementById('boot-error').style.display = 'block';</script>
+
+  <!-- Reihenfolge ist wichtig: Daten → Kern → Audio → UI → Logik → Szenen → Start -->
+  <script src="src/config.js"></script>
+  <script src="src/campus.js"></script>
+
+  <script src="src/core/rng.js"></script>
+  <script src="src/core/events.js"></script>
+  <script src="src/core/storage.js"></script>
+  <script src="src/core/scoring.js"></script>
+  <script src="src/core/gameState.js"></script>
+
+  <script src="src/audio/sfx.js"></script>
+
+  <script src="src/ui/theme.js"></script>
+  <script src="src/ui/fx.js"></script>
+  <script src="src/ui/textures.js"></script>
+  <script src="src/ui/widgets/Button.js"></script>
+  <script src="src/ui/widgets/TextInput.js"></script>
+  <script src="src/ui/widgets/Dropdown.js"></script>
+  <script src="src/ui/widgets/Checkbox.js"></script>
+  <script src="src/ui/widgets/Modal.js"></script>
+  <script src="src/ui/widgets/Toast.js"></script>
+  <script src="src/ui/widgets/ProgressBar.js"></script>
+  <script src="src/ui/widgets/Spinner.js"></script>
+  <script src="src/ui/widgets/ScrollPanel.js"></script>
+  <script src="src/ui/widgets/Window.js"></script>
+  <script src="src/ui/widgets/Phone.js"></script>
+
+  <script src="src/logic/ch1Registration.js"></script>
+  <script src="src/logic/ch2Config.js"></script>
+  <script src="src/logic/ch3SignalHunt.js"></script>
+  <script src="src/logic/ch4Certificates.js"></script>
+  <script src="src/logic/ch5Helpdesk.js"></script>
+
+  <script src="src/scenes/ChapterScene.js"></script>
+  <script src="src/scenes/PlaceholderChapterScene.js"></script>
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/MenuScene.js"></script>
+  <script src="src/scenes/GameScene.js"></script>
+  <script src="src/scenes/HUDScene.js"></script>
+  <script src="src/scenes/GameOverScene.js"></script>
+  <script src="src/scenes/chapters/Ch1RegistrationScene.js"></script>
+  <script src="src/scenes/chapters/Ch2ConfigScene.js"></script>
+  <script src="src/scenes/chapters/Ch3SignalHuntScene.js"></script>
+  <script src="src/scenes/chapters/Ch4CertificateScene.js"></script>
+  <script src="src/scenes/chapters/Ch5HelpdeskScene.js"></script>
+
+  <script src="src/main.js"></script>
+</body>
+</html>

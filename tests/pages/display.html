@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galerie: Anzeige-Widgets, Texturen und Effekte (ui-display)</title>
+  <!--
+    Eigenständige Galerie für die ui-display-Teile: Texturen (Textures.generateAll),
+    Widgets (ProgressBar, Spinner, ScrollPanel, Window, Phone) und alle FX.
+    Seiten: 1 Texturen · 2 Widgets · 3 Fenster · 4 Phone · 5 FX (Tasten 1–5 oder Reiter oben).
+    URL-Parameter: ?page=fx (Startseite), ?renderer=canvas (Canvas-Renderer erzwingen), ?mute=1.
+    Für Tests: window.__GALLERY_READY und window.__D (siehe unten).
+  -->
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #091a33; }
+    #gallery { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="gallery"></div>
+
+  <script src="../../vendor/phaser.min.js"></script>
+  <script src="../../src/config.js"></script>
+  <script src="../../src/campus.js"></script>
+  <!-- optional (falls vorhanden): Kern + Audio, z. B. für die Handy-Uhr aus GameState -->
+  <script src="../../src/core/rng.js"></script>
+  <script src="../../src/core/events.js"></script>
+  <script src="../../src/core/storage.js"></script>
+  <script src="../../src/core/scoring.js"></script>
+  <script src="../../src/core/gameState.js"></script>
+  <script src="../../src/audio/sfx.js"></script>
+  <script src="../../src/ui/theme.js"></script>
+  <script src="../../src/ui/fx.js"></script>
+  <script src="../../src/ui/textures.js"></script>
+  <script src="../../src/ui/widgets/ProgressBar.js"></script>
+  <script src="../../src/ui/widgets/Spinner.js"></script>
+  <script src="../../src/ui/widgets/ScrollPanel.js"></script>
+  <script src="../../src/ui/widgets/Window.js"></script>
+  <script src="../../src/ui/widgets/Phone.js"></script>
+
+  <script>
+  (() => {
+    'use strict';
+    const params = new URLSearchParams(location.search);
+    const C = CONFIG.COLORS;
+    const PAGES = [
+      { key: 'textures', label: '1 Texturen' },
+      { key: 'widgets', label: '2 Widgets' },
+      { key: 'windows', label: '3 Fenster' },
+      { key: 'phone', label: '4 Phone' },
+      { key: 'fx', label: '5 FX' },
+    ];
+    const NAV_H = 36;
+    const startPage = PAGES.some((p) => p.key === params.get('page')) ? params.get('page') : 'textures';
+
+    // Ton: in Tests stumm; manuell nach erster Geste freischalten
+    if (params.get('mute') === '1') RUNTIME.muted = true;
+    try {
+      if (typeof SFX !== 'undefined' && typeof SFX.init === 'function') SFX.init();
+      window.addEventListener('pointerdown', () => {
+        try { if (typeof SFX !== 'undefined' && SFX.unlock) SFX.unlock(); } catch (err) { /* Ton ist Beiwerk */ }
+      }, { once: true });
+    } catch (err) { /* Ton ist Beiwerk */ }
+
+    const D = {
+      pages: PAGES.map((p) => p.key),
+      current: startPage,
+      ready: {},
+      widgets: {},
+      log: [],
+      scrollEnds: {},
+      typewriterCompletions: 0,
+    };
+    window.__D = D;
+
+    // ---------- kleine Galerie-Helfer (bewusst ohne ui-forms-Widgets) ----------
+    function makeButton(scene, x, y, label, onClick, { width = 120, height = 30, color = C.PRIMARY } = {}) {
+      const bg = scene.add.rectangle(x, y, width, height, color, 1).setOrigin(0).setInteractive({ useHandCursor: true });
+      const text = UI.text(scene, x + width / 2, y + height / 2, label, { size: 12.5, bold: true, color: '#ffffff', origin: 0.5 });
+      bg.on('pointerover', () => bg.setFillStyle(C.PRIMARY_DARK));
+      bg.on('pointerout', () => bg.setFillStyle(color));
+      bg.on('pointerup', () => onClick());
+      return { bg, text };
+    }
+    function caption(scene, x, y, str, opts = {}) {
+      return UI.text(scene, x, y, str, { size: 12, color: '#c9d4e5', ...opts });
+    }
+    function deepCount(list) {
+      return list.reduce((sum, obj) => sum + 1 + (obj.list ? deepCount(obj.list) : 0), 0);
+    }
+    function timerCount(scene) {
+      const clock = scene.time;
+      return clock._active.length + clock._pendingInsertion.length - clock._pendingRemoval.length;
+    }
+
+    class PageScene extends Phaser.Scene {
+      constructor(key) { super({ key }); this.pageKey = key; }
+      create() {
+        Textures.generateAll(this);
+        this.cameras.main.setBackgroundColor(C.BG);
+        D.widgets[this.pageKey] = {};
+        this.build();
+        this.events.once('shutdown', () => { D.ready[this.pageKey] = false; });
+        D.ready[this.pageKey] = true;
+        if (D.current === this.pageKey) window.__GALLERY_READY = true;
+      }
+      w(name, widget) { D.widgets[this.pageKey][name] = widget; return widget; }
+    }
+
+    // ---------- 1 Texturen ----------
+    class TexturesPage extends PageScene {
+      constructor() { super('textures'); }
+      build() {
+        caption(this, 16, NAV_H + 10, 'Alle Texturen aus Textures.generateAll() – links 2× auf Nachtblau, rechts 1× auf Weiß (per setTint eingefärbt; face-* farbig, ohne Tint).', { wrap: 770 });
+        const keys = Textures.KEYS;
+        const cols = 7;
+        const cellW = 110;
+        const cellH = 98;
+        const left = (CONFIG.WIDTH - cols * cellW) / 2;
+        const top = NAV_H + 44;
+        const tintFor = (key) => (key.startsWith('face-') ? null : key === 'icon-error' ? C.DANGER : key === 'icon-warning' ? C.WARNING
+          : key === 'icon-success' ? C.SUCCESS : key.startsWith('icon-') ? C.PRIMARY : C.TEXT);
+        keys.forEach((key, i) => {
+          const cx = left + (i % cols) * cellW;
+          const cy = top + Math.floor(i / cols) * cellH;
+          const tex = this.textures.get(key).getSourceImage();
+          const scale = tex.width <= 8 ? 4 : 2;
+          this.add.rectangle(cx + 4, cy, 62, 66, C.BG_ALT, 1).setOrigin(0);
+          this.add.image(cx + 35, cy + 33, key).setScale(scale);
+          this.add.rectangle(cx + 70, cy, 36, 66, C.SURFACE, 1).setOrigin(0);
+          const small = this.add.image(cx + 88, cy + 33, key);
+          const tint = tintFor(key);
+          if (tint !== null) small.setTint(tint);
+          caption(this, cx + 55, cy + 70, key, { size: 10.5, origin: { x: 0.5, y: 0 } });
+        });
+        caption(this, 16, 560, `Renderer: ${this.game.renderer.type === Phaser.WEBGL ? 'WebGL' : 'Canvas'} · ${keys.length} Texturen`, { size: 11 });
+      }
+    }
+
+    // ---------- 2 Widgets ----------
+    const TOS = (() => {
+      const paragraphs = [];
+      const topics = ['Geltungsbereich', 'Begriffsbestimmungen', 'Nutzungsberechtigung', 'Pflichten der Nutzenden', 'Passwörter',
+        'Haftung', 'Datenschutz', 'Kehrwoche im Serverraum', 'Sanktionen', 'Schlussbestimmungen'];
+      for (let i = 0; i < 22; i++) {
+        const topic = topics[i % topics.length];
+        paragraphs.push(`§ ${i + 1} ${topic}\n(1) Die Nutzung des WLAN-Dienstes eduroam an der DHBW Stuttgart erfolgt ausschließlich im Rahmen dieser Ordnung. ` +
+          `(2) Nutzende verpflichten sich, Zugangsdaten nicht weiterzugeben, insbesondere nicht an Kevin aus dem dritten Semester.` +
+          (i === 17 ? ' (3) Wer bis hierher gelesen hat, schreibe das Wort MAULTASCHE in das Feld „Bemerkungen“.' : ''));
+      }
+      return paragraphs.join('\n\n') + '\n\n— Ende der Nutzungsordnung —';
+    })();
+
+    class WidgetsPage extends PageScene {
+      constructor() { super('widgets'); }
+      build() {
+        // Fortschrittsbalken
+        caption(this, 24, NAV_H + 12, 'UI.ProgressBar – abgerundet, animiert (Klick auf „Zufall“), unbestimmt');
+        const bars = [
+          new UI.ProgressBar(this, 24, NAV_H + 36, { width: 300, height: 14, value: 0.62 }),
+          new UI.ProgressBar(this, 24, NAV_H + 60, { width: 300, height: 14, value: 0.02, color: C.DHBW_RED }),
+          new UI.ProgressBar(this, 24, NAV_H + 84, { width: 300, height: 8, value: 1, color: C.SUCCESS }),
+          new UI.ProgressBar(this, 24, NAV_H + 102, { width: 300, height: 22, value: 0.35, color: C.HAZARD, bgColor: C.BG_ALT, radius: 6 }),
+          new UI.ProgressBar(this, 24, NAV_H + 134, { width: 300, height: 4, color: C.PRIMARY }).setIndeterminate(true),
+        ];
+        bars.forEach((bar, i) => this.w(`bar${i}`, bar));
+        this.w('bar', bars[0]);
+        const valueLabel = caption(this, 336, NAV_H + 35, '62 %');
+        bars[0].on('change', (v) => valueLabel.setText(`${Math.round(v * 100)} %`));
+        makeButton(this, 336, NAV_H + 98, 'Zufall', () => {
+          bars.slice(0, 4).forEach((bar, i) => bar.setValue(((Date.now() / 1000 + i * 0.37) % 1)));
+        }, { width: 80, height: 28 });
+
+        // Spinner
+        caption(this, 24, NAV_H + 154, 'UI.Spinner – Größen, Farben, mit Spur; Klick stoppt/startet');
+        const spinners = [
+          new UI.Spinner(this, 24, NAV_H + 178),
+          new UI.Spinner(this, 70, NAV_H + 174, { size: 36, color: C.DHBW_RED, thickness: 4 }),
+          new UI.Spinner(this, 124, NAV_H + 182, { size: 20, color: C.SUCCESS, thickness: 2.5, track: true }),
+          new UI.Spinner(this, 166, NAV_H + 172, { size: 40, color: C.HAZARD, thickness: 3, track: true }),
+        ];
+        spinners.forEach((s, i) => this.w(`spinner${i}`, s));
+        this.w('spinner', spinners[0]);
+        makeButton(this, 230, NAV_H + 178, 'Start/Stopp', () => spinners.forEach((s) => (s.isRunning() ? s.stop() : s.start())), { width: 100, height: 28 });
+
+        // Scrollpanel lang + kurz
+        caption(this, 440, NAV_H + 12, 'UI.ScrollPanel – Mausrad (nur darüber), Ziehen, Balken');
+        const scroll = new UI.ScrollPanel(this, 440, NAV_H + 36, {
+          width: 330, height: 300, text: TOS, font: 'PAPER', fontSize: 13, bgColor: C.PAPER,
+          onScroll: (p) => D.log.push({ type: 'scroll', p }),
+          onScrollEnd: () => { D.scrollEnds.long = (D.scrollEnds.long || 0) + 1; },
+        });
+        this.w('scroll', scroll);
+        let endEvents = 0;
+        scroll.on('scrollend', () => { endEvents += 1; D.scrollEnds.longEvent = endEvents; });
+        const status = caption(this, 440, NAV_H + 344, '');
+        const updateStatus = () => status.setText(`Fortschritt ${Math.round(scroll.getProgress() * 100)} % · scrollend: ${endEvents}×`);
+        scroll.on('scroll', updateStatus);
+        scroll.on('scrollend', updateStatus);
+        updateStatus();
+
+        caption(this, 24, NAV_H + 230, 'Kurzer Text (passt ohne Scrollen → scrollend sofort):');
+        const short = new UI.ScrollPanel(this, 24, NAV_H + 252, {
+          width: 300, height: 92, text: 'Mit der Nutzung von eduroam akzeptieren Sie die Nutzungsordnung. Ende.',
+          onScrollEnd: () => { D.scrollEnds.short = (D.scrollEnds.short || 0) + 1; },
+        });
+        this.w('shortScroll', short);
+
+        caption(this, 24, NAV_H + 360, 'Dunkles Panel (z. B. Logcat), Monospace:');
+        const log = new UI.ScrollPanel(this, 24, NAV_H + 382, {
+          width: 400, height: 150, font: 'MONO', fontSize: 12, color: '#9fe6a0', bgColor: 0x101418, borderColor: 0x2b313a, padding: 10,
+          text: Array.from({ length: 30 }, (_, i) => `10-15 07:${String(30 + Math.floor(i / 4)).padStart(2, '0')} W/wpa_supplicant: EAP-PEAP: Phase 2 fehlgeschlagen (Versuch ${i + 1})`).join('\n'),
+        });
+        this.w('logScroll', log);
+
+        caption(this, 440, NAV_H + 382, 'Kontrolle: Mausrad hier (außerhalb) darf\nkein Panel bewegen.', { size: 12, color: '#8fa3c0' });
+        this.w('outsidePoint', { x: 600, y: NAV_H + 470 });
+
+        /** Test-Hilfe: sehr langes Panel (Text wird gestückelt). */
+        D.makeLongPanel = (lines) => {
+          const text = Array.from({ length: lines }, (_, i) => `Zeile ${i + 1}: Die Synchronisation mit dem WLAN-System kann bis zu 24 h dauern.`).join('\n');
+          const panel = new UI.ScrollPanel(this, 440, NAV_H + 382, { width: 330, height: 150, text });
+          const texts = panel.getTextObjects();
+          const info = { chunks: texts.length, maxScroll: panel.maxScroll, contentHeight: panel.contentHeight };
+          panel.scrollTo(1);
+          info.progress = panel.getProgress();
+          info.lastChunkHasLastLine = texts[texts.length - 1].text.includes(`Zeile ${lines}:`);
+          // Abstand zwischen den Blöcken = normaler Zeilenabstand (lückenlos)
+          info.gaps = texts.slice(1).map((t, i) => Math.round(t.y - (texts[i].y + texts[i].height)));
+          info.maxChunkHeight = Math.max(...texts.map((t) => t.height));
+          panel.destroy();
+          return info;
+        };
+      }
+    }
+
+    // ---------- 3 Fenster ----------
+    class WindowsPage extends PageScene {
+      constructor() { super('windows'); }
+      build() {
+        const browser = this.w('browser', new UI.Window(this, 16, NAV_H + 14, {
+          width: 470, height: 300, title: CAMPUS.portal.name, url: CAMPUS.portal.url + '/aktivierung?schritt=1',
+        }));
+        const area = browser.getContentArea();
+        this.w('browserArea', area);
+        browser.content.add(UI.text(this, 24, 18, 'Konto aktivieren', { size: 20, bold: true }));
+        browser.content.add(UI.text(this, 24, 52, 'Bitte melden Sie sich mit Ihrer Kennung und dem\nInitialpasswort aus dem Begrüßungsbrief an.', { size: 14, color: CONFIG.CSS.TEXT_MUTED }));
+        browser.content.add(new UI.ProgressBar(this, 24, 110, { width: 300, height: 10, value: 0.4 }));
+        browser.content.add(new UI.ScrollPanel(this, 24, 136, { width: 420, height: 70, fontSize: 12, text: TOS.slice(0, 900) }));
+        // Kontroll-Text im Inhaltsbereich (Ecke = getContentArea)
+        this.add.rectangle(area.x, area.y, 6, 6, C.DHBW_RED).setOrigin(0).setDepth(5);
+
+        const os = this.w('os', new UI.Window(this, 500, NAV_H + 14, { width: 284, height: 170, title: 'Netzwerk-Diagnose – Windows', variant: 'os', closable: true }));
+        os.content.add(UI.text(this, 16, 16, 'Problem gefunden:\n„Das Problem wurde nicht gefunden.“', { size: 13 }));
+        let closes = 0;
+        const closeLabel = UI.text(this, 16, 80, 'Schließen-Klicks: 0', { size: 12, color: CONFIG.CSS.TEXT_MUTED });
+        os.content.add(closeLabel);
+        os.on('close', () => { closes += 1; D.osCloses = closes; closeLabel.setText(`Schließen-Klicks: ${closes}`); });
+
+        const insecure = this.w('insecure', new UI.Window(this, 500, NAV_H + 200, { width: 284, height: 112, title: 'Gratis WLAN!!', url: 'http://kevins-hotspot.example/login' }));
+        insecure.content.add(UI.text(this, 12, 6, 'http:// → „Nicht sicher“', { size: 12, color: CONFIG.CSS.TEXT_MUTED }));
+
+        const paper = this.w('paper', new UI.Window(this, 40, NAV_H + 330, {
+          width: 440, height: 220, title: 'IT-Merkblatt eduroam (Stand 2014)', variant: 'paper', tilt: -1.5, closable: true,
+        }));
+        paper.content.add(UI.text(this, 0, 0,
+          `1. Identität: ${CAMPUS.username} (ohne Realm!)\n2. CA-Zertifikat: ${CAMPUS.certificate.outdatedRootCA}\n3. Bei Problemen: Gerät neu starten.\n4. Bei weiteren Problemen: siehe 3.`,
+          { font: 'PAPER', size: 14, color: CONFIG.CSS.INK, lineSpacing: 6 }));
+
+        makeButton(this, 500, NAV_H + 330, 'Laden an/aus', () => {
+          const next = !browser.isLoading();
+          browser.setLoading(next);
+          os.setLoading(next);
+          insecure.setLoading(next);
+        }, { width: 130 });
+        makeButton(this, 640, NAV_H + 330, 'Titel/URL', () => {
+          browser.setTitle('Rapla – Stundenplan WWI26A (sehr langer Titel, der gekürzt wird)');
+          browser.setUrl('https://rapla.dhbw-stuttgart.example/rapla?page=calendar&user=wwi26a&file=Stundenplan&today=Heute');
+        }, { width: 130 });
+        caption(this, 500, NAV_H + 372, 'Papier mit −1,5° Neigung um die Mitte,\nOS-Fenster: Schließen zählt Klicks (zerstört nicht).', { size: 12, color: '#8fa3c0' });
+      }
+    }
+
+    // ---------- 4 Phone ----------
+    class PhonePage extends PageScene {
+      constructor() { super('phone'); }
+      build() {
+        const phone = this.w('phone', new UI.Phone(this, 40, NAV_H + 14, { width: 300, height: 540 }));
+        phone.setWifiState('connecting');
+        const area = phone.getScreenArea();
+        this.w('screenArea', area);
+        const s = phone.screen;
+        s.add(this.add.rectangle(0, 0, area.width, 56, C.PRIMARY).setOrigin(0));
+        s.add(UI.text(this, 18, 28, 'WLAN', { size: 19, bold: true, color: '#ffffff', origin: { x: 0, y: 0.5 } }));
+        const nets = [['eduroam', 'Wird verbunden …'], [CAMPUS.wifi.guestSsid, 'Offen'], ['FRITZ!Box 7590 XY', 'Gesichert'], ['iPhone von Kevin', 'Gesichert'], ['Telekom_FON', 'Anmeldung erforderlich']];
+        nets.forEach(([name, sub], i) => {
+          const y = 64 + i * 58;
+          s.add(this.add.image(30, y + 26, Textures.tinted(this, `icon-wifi-${4 - (i % 4)}`, C.TEXT)).setScale(0.8));
+          s.add(UI.text(this, 58, y + 12, name, { size: 15 }));
+          s.add(UI.text(this, 58, y + 32, sub, { size: 12, color: i === 0 ? CONFIG.CSS.PRIMARY : CONFIG.CSS.TEXT_MUTED }));
+          s.add(this.add.rectangle(58, y + 56, area.width - 70, 1, C.BORDER).setOrigin(0));
+        });
+        // Scrollpanel im Handy (verschachtelte Masken) – ragt absichtlich über den Rand hinaus
+        s.add(new UI.ScrollPanel(this, 12, 360, { width: area.width - 24, height: 100, fontSize: 12, bgColor: C.SURFACE_ALT, text: TOS.slice(0, 1400) }));
+        s.add(this.add.rectangle(area.width - 30, area.height - 20, 80, 50, C.HAZARD).setOrigin(0));
+
+        const dark = this.w('darkPhone', new UI.Phone(this, 560, NAV_H + 80, { width: 220, height: 400, theme: 'dark', battery: 9 }));
+        dark.setWifiState('no-internet', 3);
+        dark.screen.add(UI.text(this, 110, 120, 'Verbunden,\nkein Internet', { size: 16, bold: true, color: '#f1f3f4', align: 'center', origin: 0.5 }));
+
+        const stateLabel = caption(this, 360, NAV_H + 20, '');
+        const states = ['off', 'connecting', 'connected', 'no-internet'];
+        let index = 1;
+        const refresh = () => {
+          const ws = phone.getWifiState();
+          stateLabel.setText(`WLAN: ${ws.state} (Pegel ${ws.level})\nAkku: ${phone.getBattery()} %\nUhr: ${phone.getClockText()}`);
+        };
+        makeButton(this, 360, NAV_H + 80, 'WLAN-Zustand', () => { index = (index + 1) % states.length; phone.setWifiState(states[index]); refresh(); }, { width: 150 });
+        makeButton(this, 360, NAV_H + 118, 'Pegel 1–4', () => { phone.setWifiState(phone.getWifiState().state, (phone.getWifiState().level % 4) + 1); refresh(); }, { width: 150 });
+        makeButton(this, 360, NAV_H + 156, 'Akku −10 %', () => { phone.setBattery((phone.getBattery() + 90) % 110); refresh(); }, { width: 150 });
+        makeButton(this, 360, NAV_H + 194, 'Vibrieren', () => phone.vibrate(), { width: 150 });
+        makeButton(this, 360, NAV_H + 232, 'Bildschirm an/aus', () => phone.setScreenOn(!phone.isScreenOn()), { width: 150 });
+        const powerLabel = caption(this, 360, NAV_H + 278, 'Power-Taste (rechts am Handy):\nlang drücken!', { size: 12, color: '#8fa3c0' });
+        D.powerEvents = [];
+        ['power-down', 'power-up', 'power-press', 'power-longpress'].forEach((ev) => phone.on(ev, (ms) => {
+          D.powerEvents.push(ev);
+          if (ev === 'power-longpress') powerLabel.setText('Power: lang gedrückt → Neustart …');
+          if (ev === 'power-press') powerLabel.setText(`Power: kurz (${Math.round(ms)} ms)`);
+        }));
+        refresh();
+        this.time.addEvent({ delay: 500, loop: true, callback: refresh });
+      }
+    }
+
+    // ---------- 5 FX ----------
+    class FxPage extends PageScene {
+      constructor() { super('fx'); }
+      build() {
+        const paper = new UI.Window(this, 150, NAV_H + 30, { width: 500, height: 330, title: 'Antrag auf WLAN-Zugang', variant: 'paper', tilt: 1.2 });
+        paper.content.add(UI.text(this, 0, 0,
+          `Name: ${CAMPUS.studentName}\nKurs: ${CAMPUS.course}\nKennung: ${CAMPUS.username}\n\nBegründung: Ich möchte bitte\neinfach nur ins Internet.`,
+          { font: 'PAPER', size: 16, color: CONFIG.CSS.INK, lineSpacing: 8 }));
+        this.w('paper', paper);
+
+        const target = this.add.container(40, NAV_H + 400);
+        target.add(this.add.rectangle(0, 0, 150, 44, C.PRIMARY).setOrigin(0));
+        target.add(UI.text(this, 75, 22, 'Puls-Ziel', { size: 15, bold: true, color: '#ffffff', origin: 0.5 }));
+        this.w('pulseTarget', target);
+        const typeText = UI.text(this, 210, NAV_H + 386, '', { size: 13, color: '#f3f6fb', wrap: 570, lineSpacing: 3 });
+        this.w('typeText', typeText);
+
+        const typeFull = CONFIG.CHAPTERS[1].intro;
+        const actions = {
+          stamp: () => FX.stamp(this, 'ABGELEHNT', { x: 400, y: NAV_H + 200 }),
+          stamp2: () => FX.stamp(this, 'Zugang\nverweigert', { x: 400, y: NAV_H + 200, angle: 8, size: 40 }),
+          stampLong: () => FX.stamp(this, 'Authentifizierung fehlgeschlagen', { x: 400, y: NAV_H + 200 }),
+          stampGreen: () => FX.stamp(this, 'Genehmigt', { x: 640, y: NAV_H + 120, color: C.SUCCESS, angle: -6, size: 34 }),
+          shake: () => FX.shake(this),
+          flash: () => FX.flash(this),
+          burst: () => FX.burst(this, 115, NAV_H + 422, { color: C.HAZARD, count: 24 }),
+          confetti: () => FX.confetti(this),
+          float: () => {
+            FX.floatText(this, 400, 300, 'Authentifizierung fehlgeschlagen');
+            return FX.floatText(this, 400, 300, '+5 min · Fehlermeldung gegoogelt', { color: CONFIG.CSS.HAZARD, size: 15 });
+          },
+          pulse: () => FX.pulse(this, target),
+          glitch: () => FX.glitch(this),
+          typewriter: () => {
+            if (D.lastTypewriter) D.lastTypewriter.skip();
+            D.lastTypewriter = FX.typewriter(this, typeText, typeFull, { onComplete: () => { D.typewriterCompletions += 1; } });
+            return D.lastTypewriter;
+          },
+        };
+        D.actions = Object.keys(actions);
+        D.fx = (name) => {
+          const result = actions[name]();
+          return result && result.type ? result.type : typeof result;
+        };
+        const labels = [['stamp', 'Stempel [S]'], ['stamp2', 'Zweizeilig [Z]'], ['stampLong', 'Sehr lang [L]'], ['stampGreen', 'Grün [N]'],
+          ['shake', 'Shake [K]'], ['flash', 'Flash [F]'], ['burst', 'Burst [B]'], ['confetti', 'Konfetti [C]'],
+          ['float', 'Float-Text [T]'], ['pulse', 'Puls [P]'], ['glitch', 'Glitch [G]'], ['typewriter', 'Typewriter [W]']];
+        labels.forEach(([name, label], i) => makeButton(this, 16 + (i % 6) * 130, 516 + Math.floor(i / 6) * 40, label, actions[name], { width: 122 }));
+        const keys = { S: 'stamp', Z: 'stamp2', L: 'stampLong', N: 'stampGreen', K: 'shake', F: 'flash', B: 'burst', C: 'confetti', T: 'float', P: 'pulse', G: 'glitch', W: 'typewriter' };
+        this.input.keyboard.on('keydown', (event) => {
+          const name = keys[event.key.toUpperCase()];
+          if (name) actions[name]();
+        });
+      }
+    }
+
+    // ---------- Navigation (liegt über allen Seiten) ----------
+    class NavScene extends Phaser.Scene {
+      constructor() { super({ key: 'nav' }); }
+      create() {
+        this.add.rectangle(0, 0, CONFIG.WIDTH, NAV_H, C.BG_DEEP, 1).setOrigin(0);
+        UI.text(this, 12, NAV_H / 2, 'ui-display', { size: 13, bold: true, color: CONFIG.CSS.HAZARD, origin: { x: 0, y: 0.5 } });
+        this.tabs = {};
+        PAGES.forEach((page, i) => {
+          const x = 100 + i * 112;
+          const bg = this.add.rectangle(x, 5, 104, NAV_H - 10, C.BG_ALT, 1).setOrigin(0).setInteractive({ useHandCursor: true });
+          UI.text(this, x + 52, NAV_H / 2, page.label, { size: 12.5, bold: true, color: '#f3f6fb', origin: 0.5 });
+          bg.on('pointerup', () => D.show(page.key));
+          this.tabs[page.key] = bg;
+        });
+        this.input.keyboard.on('keydown', (event) => {
+          const index = Number(event.key) - 1;
+          if (index >= 0 && index < PAGES.length) D.show(PAGES[index].key);
+        });
+        this.highlight();
+      }
+      highlight() {
+        Object.entries(this.tabs).forEach(([key, bg]) => bg.setFillStyle(key === D.current ? C.PRIMARY : C.BG_ALT));
+      }
+    }
+
+    const game = new Phaser.Game({
+      type: params.get('renderer') === 'canvas' ? Phaser.CANVAS : Phaser.AUTO,
+      parent: 'gallery',
+      width: CONFIG.WIDTH,
+      height: CONFIG.HEIGHT,
+      backgroundColor: CONFIG.CSS.BG,
+      banner: false,
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      scene: [TexturesPage, WidgetsPage, WindowsPage, PhonePage, FxPage, NavScene],
+    });
+    D.game = game;
+
+    /** Wechselt die Galerie-Seite (stoppt die alte Szene → testet das Aufräumen). */
+    D.show = (key) => {
+      if (!D.pages.includes(key)) return false;
+      D.pages.forEach((other) => { if (other !== key && game.scene.isActive(other)) game.scene.stop(other); });
+      D.current = key;
+      if (!game.scene.isActive(key)) game.scene.start(key);
+      const nav = game.scene.getScene('nav');
+      if (nav && nav.tabs) nav.highlight();
+      return true;
+    };
+    D.scene = (key = D.current) => game.scene.getScene(key);
+    D.counts = (key = D.current) => {
+      const scene = game.scene.getScene(key);
+      return {
+        children: scene.children.list.length,
+        deep: deepCount(scene.children.list),
+        tweens: scene.tweens.getTweens().length,
+        timers: timerCount(scene),
+        wheel: scene.input.listenerCount('wheel'),
+        pointerup: scene.input.listenerCount('pointerup'),
+        postupdate: scene.events.listenerCount('postupdate'),
+        update: scene.events.listenerCount('update'),
+      };
+    };
+    D.textureInfo = () => {
+      const scene = game.scene.getScene(D.current);
+      return Textures.KEYS.map((key) => {
+        const exists = scene.textures.exists(key);
+        const frame = exists ? scene.textures.getFrame(key) : null;
+        return { key, exists, width: frame ? frame.width : 0, height: frame ? frame.height : 0, expected: Textures.SIZES[key] };
+      });
+    };
+    D.renderer = () => (game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas');
+    D.setTimeScale = (factor, key = D.current) => {
+      const scene = game.scene.getScene(key);
+      scene.tweens.timeScale = factor;
+      scene.time.timeScale = factor;
+    };
+
+    game.events.once('ready', () => {
+      // Seiten außer der Startseite schlafen lassen, Navigation obenauf
+      D.pages.forEach((key) => { if (key !== startPage) game.scene.stop(key); });
+      game.scene.start('nav');
+      game.scene.bringToTop('nav');
+      D.show(startPage);
+    });
+  })();
+  </script>
+</body>
+</html>

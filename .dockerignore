@@ -1,0 +1,16 @@
+# Ins Image kommen nur index.html, src/, vendor/ und server/ (siehe Dockerfile).
+# Alles andere bleibt aus dem Build-Kontext draußen.
+.git
+.gitignore
+.dockerignore
+.DS_Store
+node_modules
+tests
+screenshots
+docs
+deploy
+*.md
+docker-compose.yml
+Dockerfile
+package.json
+package-lock.json

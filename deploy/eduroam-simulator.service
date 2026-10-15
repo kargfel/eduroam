@@ -1,0 +1,34 @@
+# systemd-Dienst für den eduroam-Simulator (Variante ohne Docker).
+# Installation: docs/DEPLOYMENT.md, Abschnitt "Variante B: ohne Docker".
+# Pfade anpassen, falls das Repo nicht unter /opt/eduroam liegt oder node woanders installiert ist
+# (Pfad herausfinden: command -v node).
+
+[Unit]
+Description=eduroam-Simulator (Webserver auf Port 2222)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/eduroam
+ExecStart=/usr/bin/node /opt/eduroam/server/serve.mjs
+Environment=PORT=2222
+Environment=HOST=0.0.0.0
+Restart=on-failure
+RestartSec=3
+
+# Härtung: flüchtiger Benutzer ohne Schreibrechte; das Repo wird nur gelesen
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

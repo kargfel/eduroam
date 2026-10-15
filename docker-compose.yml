@@ -1,0 +1,48 @@
+# Hosting des eduroam-Simulators auf dem Homeserver – Anleitung: docs/DEPLOYMENT.md
+#
+#   Start:   docker compose up -d --build
+#   Status:  docker compose ps        (Spalte STATUS zeigt "healthy")
+#   Logs:    docker compose logs -f
+#   Update:  ./deploy/update.sh
+#
+# Kette: Browser → Cloudflare → Tunnel (cloudflared) → Traefik → Host-Port 2222 → dieser Container
+services:
+  eduroam:
+    build: .
+    image: eduroam-simulator:local
+    container_name: eduroam-simulator
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "2222"
+      # LOG_REQUESTS: "1"   # jede Anfrage protokollieren (für die Fehlersuche)
+    ports:
+      # Bind-Adresse und Host-Port lassen sich per .env ändern (EDUROAM_BIND, EDUROAM_PORT).
+      # Standard: alle Schnittstellen, Port 2222 – genau dorthin zeigt die Traefik-Konfiguration.
+      - "${EDUROAM_BIND:-0.0.0.0}:${EDUROAM_PORT:-2222}:2222"
+    # Härtung: Dateisystem schreibgeschützt, keine Linux-Capabilities, keine Rechteausweitung
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "3"
+
+    # --- Alternative: Traefik über Docker-Labels statt über die Datei-Konfiguration ---
+    # Nur nötig, wenn Traefik den Docker-Provider nutzt und im Netzwerk "proxy" hängt.
+    # networks:
+    #   - proxy
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.http.routers.eduroam.rule=Host(`eduroam.felixkarg.de`)
+    #   - traefik.http.routers.eduroam.entrypoints=web
+    #   - traefik.http.services.eduroam.loadbalancer.server.port=2222
+
+# networks:
+#   proxy:
+#     external: true
